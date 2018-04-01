@@ -26,8 +26,8 @@ x_data = np.linspace(-1, 1, 300, dtype=np.float32)[:, np.newaxis]
 noise = np.random.normal(0, 0.05, x_data.shape).astype(np.float32)
 y_data = np.square(x_data) - 0.5 + noise
 
-plt.scatter(x_data, y_data)
-plt.show()
+##plt.scatter(x_data, y_data)	
+##plt.show()
 
 # define placeholder for inputs to network
 xs = tf.placeholder(tf.float32, [None, 1])
@@ -39,6 +39,7 @@ prediction = add_layer(l1, 10, 1, activation_function=None)
 
 # the error between prediction and real data
 loss = tf.reduce_mean(tf.reduce_sum(tf.square(ys-prediction), reduction_indices=[1]))
+#loss = tf.reduce_mean(tf.square(ys-prediction))	//等同上条指令
 train_step = tf.train.GradientDescentOptimizer(0.1).minimize(loss)
 # important step
 sess = tf.Session()

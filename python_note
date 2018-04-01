@@ -1,0 +1,349 @@
+20180310:
+更换高速的ubuntu16源:
+	sudo gedit /etc/apt/sources.list
+	注释其他源，添加：
+		# 默认注释了源码镜像以提高 apt update 速度，如有需要可自行取消注释
+		deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial main restricted universe multiverse
+		# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial main restricted universe multiverse
+		deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-updates main restricted universe multiverse
+		# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-updates main restricted universe multiverse
+		deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-backports main restricted universe multiverse
+		# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-backports main restricted universe multiverse
+		deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-security main restricted universe multiverse
+		# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-security main restricted universe multiverse		
+		# 预发布软件源，不建议启用
+		# deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-proposed main restricted universe multiverse
+		# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-proposed main restricted universe multiverse
+	sudo apt-get update
+
+更换高速的pip3源：
+	1、在用户目录下（/home/XXX）创建.pip文件夹，并创建pip.conf文件
+	2、在pip.conf下输入：（注意：这里更换的是阿里云镜像源）
+		[global]
+		trusted-host = mirrors.aliyun.com
+		index-url = http://mirrors.aliyun.com/pypi/simple
+	3、 sudo apt-get update
+
+python 虚拟环境：
+	pip3 install virtualenv
+	sudo pip3 install virtualenvwrapper	//虚拟环境管理模块
+	mkdir $HOME/.local/virtualenvs	  //创建虚拟环境管理目录 (不要加sudo)
+	sudo gedit ~/.bashrc 	//末尾添加:
+		# by william
+		# setting about virtualenvwrapper
+		export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3
+		export VIRTUALENV_USE_DISTRIBUTE=1        #  总是使用 pip/distribute                                        
+		export WORKON_HOME=$HOME/.local/virtualenvs       # 所有虚拟环境存储的目录
+		if [ -e $HOME/.local/bin/virtualenvwrapper.sh ];then
+		   source $HOME/.local/bin/virtualenvwrapper.sh                                                
+		else if [ -e /usr/local/bin/virtualenvwrapper.sh ];then
+		         source /usr/local/bin/virtualenvwrapper.sh
+		     fi
+		fi
+		export PIP_VIRTUALENV_BASE=$WORKON_HOME
+		export PIP_RESPECT_VIRTUALENV=true
+	source ~/.bashrc	//启动 virtualenvwrapper
+
+	简单创建虚拟环境:
+		virtualenv aaa  	//创建一个独立环境空间aaa,在当前文件夹建立一个aaa文件夹,
+					//这种默认情况下,会把默认的解释机,和对应的默认软件库加入环境aaa
+		virtualenv --no-site-packages bbb //创建一个独立环境空间aaa,在当前文件夹建立一个aaa文件夹,
+							  //这情况下,不会把默认的软件库加入环境bbb,
+		virtualenv ccc --python=python2   //创建一个独立环境空间ccc,在当前文件夹建立一个ccc文件夹,
+						  //这种默认情况下,会把默认的软件库,和默认的解释机加入环境ccc
+		启用虚拟环境
+		cd ccc	//进入环境文件夹
+		source ./bin/activate
+		cd ~ //进入要执行的项目的文件夹,例如~
+		查看当前状态
+		(ccc) kingders@kingders-ThinkPad-T420:~$ 	//先可以直观看到(ccc)前缀,就是说现在处于 ccc 的独立python 工作环境里下
+		退出虚拟环境
+		deactivate
+	通过管理套件创建虚拟环境:
+		mkvirtualenv aaa -p python3	//创建
+		workon aaa		//进入
+		workon			//查看
+		deactivate		//退出
+		
+
+
+
+
+!@!
+
+
+
+20180319
+IndentationError: expected an indented block
+	这个问题要注意缩进！！
+
+
+
+
+
+
+
+
+20180401
+Tensorflow 常用:
+参数:
+tf.Variable.init(initial_value, trainable=True, collections=None, validate_shape=True, name=None)
+	initial_value 	所有可以转换为Tensor的类型 	变量的初始值
+	trainable 	bool 	如果为True，会把它加入到GraphKeys.TRAINABLE_VARIABLES，才能对它使用Optimizer
+	collections 	list 	指定该图变量的类型、默认为[GraphKeys.GLOBAL_VARIABLES]
+	validate_shape 	bool 	如果为False，则不进行类型和维度检查
+	name 		string 	变量的名称，如果没有指定则系统会自动分配一个唯一的值
+从正态分布中输出随机值:	
+tf.random_normal(shape, mean=0.0, stddev=1.0, dtype=tf.float32, seed=None, name=None) 
+	shape: 一维的张量，也是输出的张量。
+	mean: 正态分布的均值。
+	stddev: 正态分布的标准差。
+	dtype: 输出的类型。
+	seed: 一个整数，当设置之后，每次生成的随机数都一样。
+	name: 操作的名字。
+	例子:
+	|2,6,7| = tf.random_normal([2.3])
+	|9,1,4|
+占位符号:
+tf.placeholder(dtype, shape=None, name=None)
+	此函数可以理解为形参，用于定义过程，在执行的时候再赋具体的值
+	dtype：数据类型。常用的是tf.float32,tf.float64等数值类型
+	shape：数据形状。默认是None，就是一维值，也可以是多维，比如[2,3], [None, 3]表示列是3，行不定
+	name：名称。
+二维数组的叠加函数	
+tf.reduce_sum()
+	例子1:
+	[2,2,2] = tf.reduce_sum(|1,1,1|, reduction_indices=[0] )
+				|1,1,1|
+	|3| = tf.reduce_sum(|1,1,1|, reduction_indices=[1] )
+	|3|		    |1,1,1|	
+	例子2:
+	6 = tf.reduce_sum(|1,1,1|, reduction_indices=[0,1] )
+			  |1,1,1|	
+	就是先reduction_indices=[0]得到[2,2,2],再reduction_indices=[1] 得到 6 
+
+二维数组的乘函数
+tf.matmul()
+	a = tf.constant([1, 2, 3, 4, 5, 6], shape=[2, 3]) => [[1. 2. 3.]
+	                                                      [4. 5. 6.]]
+
+	b = tf.constant([7, 8, 9, 10, 11, 12], shape=[3, 2]) => [[7. 8.]
+	                                                         [9. 10.]
+	                                                         [11. 12.]]
+	c = tf.matmul(a, b) => [[58 64]
+        	                [139 154]]
+二维数组的 2次方
+tf.square()
+	|1,  4, 9| = tf.reduce_sum(|1,2,3|)
+	|16,25,36|		   |4,5,6|
+二维数组的 平均值:
+tf.reduce_mean()
+	  2.5 = tf.reduce_mean(|1,2|)
+			       |3,4|
+	|2,3| = tf.reduce_mean(|1,2|, 0)
+			       |3,4|
+	|1.5| = tf.reduce_mean(|1,2|, 1)
+	|3.5|		       |3,4|
+
+
+
+
+
+
+
+
+
+
+
+
++++++++++++++
+
+20180401
+回归:
+/home/william/AI/machine learning/回归/code.py
+通过散点数据训练一个模型,找到散点的落入规律,
+这里找到的规律是,散点落入一个二次函数范畴的规律,也就说通过模型得到的散点建立的曲线越来越像二次曲线 
+先人为制作一个 二次函数曲线 的散点图,作为样本参数 这里是建立 300 个散点
+	x_data = np.linspace(-1, 1, 300, dtype=np.float32)[:, np.newaxis]
+	noise = np.random.normal(0, 0.05, x_data.shape).astype(np.float32)
+	y_data = np.square(x_data) - 0.5 + noise  
+再通过 matplotlib.pyplot 显示散点图!! 
+	plt.scatter(x_data, y_data)	
+	plt.show()	//这里训练和显示散点图是冲突的,要训练,就要屏蔽显示散点图
+训练模型建立:
+//定义如何建立层
+def add_layer(inputs, in_size, out_size, activation_function=None): //定义如何建立层
+	重点如何地定义变量定义:例如:
+	Weights = tf.Variable(tf.random_normal([in_size, out_size]))
+	tf.random_normal 得随机变量值,这里出来是随机二维数组 in_size*out_size,其他参数默认,
+	tf.Variable 把这个随机二位数组值变成 tensorflow变量
+//定义训练模型的输入输出变量占位符
+	xs = tf.placeholder(tf.float32, [None, 1])
+	ys = tf.placeholder(tf.float32, [None, 1])
+	//输入的xs.输出的ys是一维数组,而[None, 1]表示列是1，行不定的一维维数组,
+	//注意是一维数组,不是一维量,是有多个一维量组成的一维数组
+	//之所一维数组,是因为在这个例子里,样本是一个个的点坐标,而每一次训练是一次性输入XX个样本,统一计算
+	//这堆样本的x分量会放入xs里,变成一个有XX个一维量的一维数组
+	//这堆样本的y分量会放入ys里,变成一个有XX个一维量的一维数组	
+//构建多层模型
+	这里只有两层: l1隐藏层,和 prediction预测输出层
+	l1 = add_layer(xs, 1, 10, activation_function=tf.nn.relu)
+	prediction = add_layer(l1, 10, 1, activation_function=None)
+	//li层,会对结果执行relu激活算法,使第一层的输出有10个变量的一维数组的变量值在0-1附近
+	//使用激活函数,可以优化避免梯度消失和梯度爆炸的情况发生
+//设置训练方式
+	loss = tf.reduce_mean(tf.reduce_sum(tf.square(ys-prediction), reduction_indices=[1]))
+	//例子说明:例如一次训练直接输入5个样本点 [a,A][b,B][c,C][d,D][e,E]
+	//那么 xs=|a| ,  ys=|A|  通过 xs 得到的 prediction=|Y|
+	//	  |b|       |B|				  |H|
+	//	  |c|       |C|				  |Z|
+	//	  |d|       |D|				  |T|
+	//	  |e|       |E|     			  |V|
+	//那么 tf.square就得到 |(A-Y)^2|
+	//		      |(B-H)^2|
+	//		      |(C-Z)^2|
+	//		      |(D-T)^2|
+	//		      |(E-V)^2|
+	//然后 tf.reduce_sum(..,reduction_indices=[1]) 得到:
+	//	|(A-Y)^2|
+	//	|(B-H)^2|
+	//	|(C-Z)^2|
+	//	|(D-T)^2|
+	//	|(E-V)^2|
+	//	因为是每行只有一个量,所 tf.reduce_sum 后并没有变化
+	//然后 tf.reduce_mean()得到平均值:
+	//	( |(A-Y)^2| + |(B-H)^2| + |(C-Z)^2| + |(D-T)^2| + |(E-V)^2| ) / 5 	
+	train_step = tf.train.GradientDescentOptimizer(0.1).minimize(loss)
+	//使用 普通的梯度下降的优化方法(GradientDescent),来训练优化 loss, 学习率是 0.1
+	//最终这次训练会更新所有的 weights 和 biases
+//初始化tf训练环境
+	sess = tf.Session(),	
+//初始化tensorflow的所有变量
+	init = tf.global_variables_initializer()
+	sess.run(init)
+//开始训练
+	for i in range(1000):
+    		sess.run(train_step, feed_dict={xs: x_data, ys: y_data})
+	//执行1000次训练,每次训练都 读入 300 个散点,即 xs数组有300行, ys数组有300行
+	//而这里我们就只有300个样本,所以每次训练都读入同一组数据
+    		if i % 50 == 0:
+        	print(sess.run(loss, feed_dict={xs: x_data, ys: y_data}))
+	//每50次训练后,打印一次 loss
+
+/home/william/AI/machine learning/回归/code.py
+这个例子补充主要是图像监测部分!!
+使用:import matplotlib.pyplot as plt
+	fig = plt.figure()		//创建一个独立的视图窗口
+	ax = fig.add_subplot(1,1,1)	//在窗口添加一个子视图ax
+	ax.scatter(x_data, y_data)	//子视图的 x,y 轴对应 x_data, y_data
+	plt.ion()			//使用交互形式,
+	plt.show()			//一直显示图,(如果不开启交互模式,默认是阻塞模式,)
+					//交互模式下一直显示图,图会一直显示,而程序也会继续plt.show()后的内容
+					//阻塞模式下一直显示图,会一直卡在plt.show(),
+	lines = ax.plot(x_data, prediction_value, 'r-', lw=5)
+					//据 x_data, prediction_value 的一堆散点画出一条线
+					//x值,y值,红色,宽度5
+	plt.pause(1)		//暂停一秒
+	ax.lines.remove(lines[0])//把刚刚画的线去掉,(这样就画下一条线,就不会挡住什么的)
+
+
+
+
+
+
+
+20180401
+学习使用tensorboard监视模型:/home/william/AI/machine learning/tensorboard
+code3.py
+重点是,在使用 tf.xxxx之前,先添加 with tf.name_scope('XXXX'):
+例如:
+with tf.name_scope('layer'):
+    with tf.name_scope('weights'):
+        Weights = tf.Variable(tf.random_normal([in_size, out_size]), name='W')
+with tf.name_scope('inputs'):
+    xs = tf.placeholder(tf.float32, [None, 1], name='x_input')
+with tf.name_scope('loss'):
+    loss = tf.reduce_mean(tf.reduce_sum(tf.square(ys - prediction), reduction_indices=[1]))
+with tf.name_scope('train'):
+    train_step = tf.train.GradientDescentOptimizer(0.1).minimize(loss)
+然后,sess = tf.Session()后,init = tf.global_variables_initializer()前
+    writer = tf.summary.FileWriter("logs/", sess.graph)
+这样执行代码时,会把模型图加载到logs/里,
+终端运行 tensorboard --logdir=logs后,就可以在浏览器http://127.0.0.1:6006/查看到模型内容
+
+code4.py
+重点添加训练参数的跟踪记录表
+例如:
+    Weights = tf.Variable(tf.random_normal([in_size, out_size]), name='W')
+    tf.summary.histogram(layer_name + '/weights', Weights) 
+    //在tensorboard的histogram和distribution栏添加Weights 的训练跟踪记录表
+    loss = tf.reduce_mean(tf.reduce_sum(tf.square(ys - prediction),reduction_indices=[1]))
+    tf.summary.scalar('loss', loss)
+    //在tensorboard的scalar栏添加loss 的训练跟踪记录表
+然后,sess = tf.Session()后,init = tf.global_variables_initializer()前
+    merged = tf.summary.merge_all()
+    writer = tf.summary.FileWriter("logs2/", sess.graph)
+这样执行代码时,会把模型图,还有训练跟踪表设置加载到logs2/里,
+然后每隔n次训练后,给所有训练跟踪表添加新数据
+    result = sess.run(merged, feed_dict={xs: x_data, ys: y_data})
+    writer.add_summary(result, i)
+最后终端运行 tensorboard --logdir=logs后,就可以在浏览器http://127.0.0.1:6006/查看到模型内容
+
+
+
+
+
+
+
+
+
+20180401
+分类:/home/william/AI/machine learning/分类
+code5.py
+注意,这里使用的交叉熵跟我之前分析的交叉熵有所区别
+我之前分析的是 基于一个图像样品,得到的交叉熵再反向传导学习,
+而这里却是 100个 样本的交叉熵,这里的交叉熵有点像平均值的意思,然后再反向传导学习
+http://www.360doc.com/content/17/0118/20/10408243_623338635.shtml
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
