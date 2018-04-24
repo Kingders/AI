@@ -13,8 +13,9 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 
-ACTIVATION = tf.nn.relu
-N_LAYERS = 7
+##ACTIVATION = tf.nn.relu
+ACTIVATION = tf.nn.tanh
+N_LAYERS = 8
 N_HIDDEN_UNITS = 30
 
 
