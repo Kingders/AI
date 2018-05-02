@@ -134,9 +134,9 @@ class DeepQNetwork:
         return action
 
     def learn(self):
-        # check to replace target parameters
+        # check to replace target parameters 拷贝eval去更新target网络操作
         if self.learn_step_counter % self.replace_target_iter == 0:
-            self.sess.run(self.replace_target_op)
+            self.sess.run(self.replace_target_op)	
             print('\ntarget_params_replaced\n')
 
         # sample batch memory from all memory
@@ -154,7 +154,7 @@ class DeepQNetwork:
             })
 
         # change q_target w.r.t q_eval's action
-        q_target = q_eval.copy()
+        q_target = q_eval.copy()	#这个只是复制了一个格式过去,
 
         batch_index = np.arange(self.batch_size, dtype=np.int32)
         eval_act_index = batch_memory[:, self.n_features].astype(int)
