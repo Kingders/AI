@@ -74,7 +74,6 @@ class PolicyGradient:
 	#接下来这段是 policy gradient 的误差算式子
         with tf.name_scope('loss'):
             # to maximize total reward (log_p * R) is to minimize -(log_p * R), and the tf only have minimize(loss)
-	    # 这里使用的是 交叉墒,代替 log(policy),而不是正统的 log(policy)
             neg_log_prob = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=all_act, labels=self.tf_acts)   # this is negative log of chosen action
             # or in this way:
             # neg_log_prob = tf.reduce_sum(-tf.log(self.all_act_prob)*tf.one_hot(self.tf_acts, self.n_actions), axis=1)
@@ -129,58 +128,3 @@ class PolicyGradient:
         discounted_ep_rs -= np.mean(discounted_ep_rs)	# ( G(t) - 平均值 ) / 标准差
         discounted_ep_rs /= np.std(discounted_ep_rs)	
         return discounted_ep_rs
-'''
-学习分析笔记!!
-根据算法定义:
-function REINFORCE
-    Initialise θ arbitrarily
-    for each episode { s1,a1,r2,...,sT−1,aT−1,rT }∼πθ do
-        for t = 1 to T−1 do
-            θ ← θ + α * ∇θ ( logπθ(st,at)vt )
-        end for
-    end for
-    returnθ
-end function
-	
-policy gradient 有几个重点
-1,行为策略 a = πθ(s)
-  在这里 在s状态 通过策略 πθ(s) 得到动作 a, 
-  相应地 πθ(s,a) 的得到是 在s状态,获得动作a 对应的策略,表现为在s状态,获得动作几率
-2,奖励 vt / v(t) / Gt / G(t) / R(sa) 有好多称谓,但都是同个概念,都是马尔科夫模型的一个概念
-  当前 s 执行了a 得到 的奖励  v(t) = r + v(t+1)
-  r是直接奖励,  v(t+1)是 下个 s 执行了a 得到 的奖励
-  这个奖励模型拥有前瞻性意义!!,表示了这一步的奖励 拥有了多少 导致episode成功结束 贡献价值
-  即隐约告诉我们 是否更靠近成功的结束
-3 根据 算法定义 我们的  loss 可以设置为 j(θ) =E[ ∑ -logπθ(st,at)vt ]
-					    t
-  logπθ(st,at) 与 πθ(s,a) 意义一样, 即在s状态,获得动作a 对应的策略,表现为在s状态,获得动作几率
-  使用 logπθ(st,at) 是为了跟好计算
-  假若 完全锻炼的 策略, loss 很小, 意味这 任一 timestep (即t) 都 选择了相当正确的行为a
-   1, 大多数情况, 
-      比如 t = 10, 执行了 a = πθ(s) 的 a , 得到很高的 vt (更近成功终点), πθ(s,a)几乎等于1
-      然后 -logπθ(st,at) ≈ 0 所以 -logπθ(s,a)vt ≈ 0,表示对 loss 几乎没有贡献
-      表示这一步使用 a 无比正确的策略,不用修正策略
-   2, 几乎 有 1 - e_greedy 甚至更小 概率出现的情况 
-      比如 t = 78, 执行了 a = πθ(s) 以外的 a1,但得到 很小的 Vt (更远离成功终点), πθ(s,a)比如等于0.1
-      然后 -logπθ(st,at) ≈ 1 所以 -logπθ(s,a)vt ≈ vt, 表示 表示对 loss 几乎没有贡献
-      表示这一步使用 a1 是错误的,所以策略还是正确的,不用修正策略 πθ(s),或者修正很小内容	
-   2, 极少数情况, 
-      比如 t = 49, 执行了 a = πθ(s) 以外的 a1 , 也得到很高的 vt (更近成功终点), πθ(s,a)等于0.3
-      然后 logπθ(st,at) ≈ -0.5,即 -logπθ(st,at) ≈ 0.5 所以 -logπθ(s,a)vt >0,(例如 = 10)
-      表示 这一步虽然使用了策略外的一步,但是得到很大的vt(更近成功终点),
-      表示在这个 s 执行的 a = πθ(s) 的策略值得怀疑, 应该有所改变,应该更偏向 a1
-4 实际情况 我们 没有使用 logπθ(s,a) 这个模块, 而是使用 all_act 和 self.tf_acts 的交叉熵来代替
-  logπθ(s,a) 与 交叉熵 虽然算法不一样,但意义是一样的:
-      当执行的行为是远离策略时, 值比较大, 
-      当执行的行为等于策略导出的,值=0
-  之所以这么替代,是因为 不知当如何构造 logπθ(s,a),相反,建立交叉熵比较简单
-  all_act 是每个时刻t,策略导出 a = πθ(s) 组成的 数组
-  self.tf_acts 是每个时刻t,真正执行的 a 组成的 数组
-  计算 每个 t 得到 交叉熵,就等于比对那刻 执行的行为 是否等于 策略导出的,
-  是则等于0,非则是一个比较大的值
-  所以可完全取代了 logπθ(s,a)
-5 然后这里学习 的策略参数θ 对应的 其实就是 策略网络里的 fc1 fc2 里的 W b
-  而 这里的 self.tf_vt 是 每一刻t 执行的实际的 a 得到 奖励, 
-  而不是 策略算出的行为a 对应的奖励
-'''
-

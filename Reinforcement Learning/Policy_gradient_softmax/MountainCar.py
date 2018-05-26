@@ -11,7 +11,7 @@ import gym
 from RL import PolicyGradient
 import matplotlib.pyplot as plt
 
-DISPLAY_REWARD_THRESHOLD = -2000  # renders environment if total episode reward is greater then this threshold
+DISPLAY_REWARD_THRESHOLD = -1300  # renders environment if total episode reward is greater then this threshold
 # episode: 154   reward: -10667
 # episode: 387   reward: -2009
 # episode: 489   reward: -1006
@@ -28,6 +28,10 @@ print(env.observation_space)
 print(env.observation_space.high)
 print(env.observation_space.low)
 
+#打印出 向量 的维度大小!!
+print(env.action_space.n)	#一个动作用 一个 env.action_space.n 维向量 表示
+print(env.observation_space.shape[0])	#一个状态observation用 一个 env.observation_space.shape[0] 维向量 表示
+
 RL = PolicyGradient(
     n_actions=env.action_space.n,
     n_features=env.observation_space.shape[0],
@@ -35,7 +39,7 @@ RL = PolicyGradient(
     reward_decay=0.995,
     # output_graph=True,
 )
-
+'''
 for i_episode in range(1000):
 
     observation = env.reset()
@@ -70,4 +74,5 @@ for i_episode in range(1000):
 
             break
 
-observation = observation_
+        observation = observation_
+'''

@@ -1,0 +1,3 @@
+a = range(9)
+raw_input("Enter your input: ")
+print (a)
