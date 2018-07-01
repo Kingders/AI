@@ -445,6 +445,15 @@ tf.transpose(outputs, [1,0,2]:表示把 batch steps 两维转换
 		output 从 变量 变成了 数组变量 !!
 
 
+更多 tensorflow 常用简介 : https://blog.csdn.net/lenbow/article/details/52218551
+
+
+
+
+
+
+
+
 
 >>>>>>>>>>>>>>>>
 
@@ -1681,14 +1690,33 @@ ___________________________________________________
 		时,才正式结束结束这一回合.准备开始下一回合.				
 	这里 奖励算法和行为选取算法都是自定义的,需要根据实际情况谨慎设计
 	这里有必要详细讨论学习原理:
+	     1,	一般学习时
 		假如当前 s:3 选出的 a:up 是 s 里最大权值行为, 
 		我们也知道 a:up 后 到达的 S_:1 的最大权值行为是 max_a_:left
 		如果 r + gama * Q(s_,max_a_) - Q(s,a) 很小,
-		意味着 s:3 执行 a:up 后到 s_:1 然后执行 max_a_:left 是当前认为最正确操作流程
+		意味着 s:3 执行 a:up 后到 s_:1 然后执行 max_a_:left 是当前认为是没毛病的操作流程
 		如果 r + gama * Q(s_,max_a_) - Q(s,a) 很大时,
-		s:3 执行 a:up 后到 s_:1 然后执行 max_a_:left 这串操作流并不合适
+		s:3 执行 a:up 后到 s_:1 然后执行 max_a_:left 这串操作流被认为更加值得去执行
 		于是, 把 r + gama * Q(s_,max_a_) - Q(s,a) 反馈更新 s:3 中 a:up 的权值,
-		使得以后有机会重新回到 s:3 时,选出行为 a:up 的概率变小,
+		使得以后有机会重新回到 s:3 时,更有机会选出行为 a:up ,
+
+	     2,	假若是充分学习后
+		注意除了到达成功终点的那一步有 r外, 其他步的 r 都为 0, 陷阱得 负r
+		由于只有成功终点有奖励,邻进终点的 s 里走向终点 的 a 有极高权值
+		然后收敛的能到达成功终点的一套行为 [a] 每个都是 其所在 s 里 最高的权值
+		假如当前 s:3 选出的 a:up 是 s 里最大权值行为, 
+		我们也知道 a:up 后 到达的 S_:1 的最大权值行为是 max_a_:left
+		由于 Q(s_,max_a_) 和 Q(s,a) 都是最大权值,而且比较接近
+		r + gama * Q(s_,max_a_) - Q(s,a) 便很小,
+		意味着 s:3 执行 a:up 后到 s_:1 然后执行 max_a_:left 是当前认为最正确操作流程
+		Q(s:3,a) 并没有做太显著的改动
+		假如当前 s:3 选出的 a:down 不是是 s 里最大权值行为,是随机行为 
+		我们也知道 a:up 后 到达的 S_:4 的最大权值行为是 max_a_:right
+		Q(s,a) 比较小, S_:4很小到达过,所以 Q(s_,max_a_) 也不大
+		 r + gama * Q(s_,max_a_) - Q(s,a) 很小,
+		意味着 s:3 执行 a:up 后到 s_:1 然后执行 max_a_:left 是当前认为最正确操作流程
+		Q(s:3,a:dowm) 并没有做太显著的改动,
+		那么 Q(s:3,a:up) 还是最大的,下次到 s:3, 还是会选 a:up
 	逆向思考学习原理:
 		假如有一个充分学习后的模型.q值表是这样的:
 		       left     right        up      down
@@ -1708,7 +1736,7 @@ ___________________________________________________
 			0:left -> 4:up -> 2:right -> 6:right -> 8:up -> 9终点
 			以后的回会没有意外都会沿着这条路径跑
 		因为 s:0:a:left -> s_4:max_a_:up 的  r + gama * Q(s_,max_a_) - Q(s,a) 很小
-		Q(0,left)就几乎变化,所以下次到达地点0时,还会很大机会选择left行为到 地点4
+		Q(0,left)就几乎没变化,所以下次到达地点0时,还会很大机会选择left行为到 地点4
 		同样道理, Q(4,up),Q(2,right),Q(6,right),Q(8,right) 都几乎不变化
 		所以 0:left -> 4:up -> 2:right -> 6:right -> 8:up -> 9终点 
 		就是一条当前最为正确 操作流
@@ -2426,6 +2454,200 @@ end function
 而policy Gadient 一般就像是 第二种 收敛模型
 机器学习, 有的符合第一种,有的符合第二种
 强化学习,估计一般都符合第二种.
+我们分析发现, 
+policy Gradient 是 回合更性的(episode完后才跟新策略)
+Q-learning,sara是单步更新, 每episode中每一步执行后都马上更新
+
+
+
+
+
+
+
+
+20180527
+AC actor-critic
+从 policy gradient 说起,
+从 policy-gradient 的例子看来 是回合更新的:
+	loss: j(θ) =E[ ∑ -logπθ(st,at)vt ]
+	               t
+	把episode所有t 对应 的 st,at和vt 代入 loss 然后做梯度下降更新 policy πθ(s)
+但是 policy gradient 的算法定义中看: 并没有说明 policy gradient 就一定是 回合更新
+        for t = 1 to T−1 do
+            θ ← θ + α * ∇θ ( logπθ(st,at)vt )
+	看起来反而 更趋向建议单步更新,
+	因为 ∇θ ( logπθ(st,at)vt ) 是单步对 policy πθ(s) 更新的操作
+	就是说 loss更应该是这样的 j(θ) = -logπθ(st,at)vt , 
+	每执行一步就 得到 一个 -logπθ(st,at)vt ,
+	同样地, 如果被行使的这一步是策略导出的,-logπθ(st,at)就几乎等于0
+	如果,被行使的这一步不是策略导出的,-logπθ(st,at)就相当大,
+	而且vt也不等于0时,那么 -logπθ(st,at)vt就相当大
+	算法就会 执行显著的策略更新了
+	即 随即把这步的s,a,v当作常数代入 j(θ) = -logπθ(st,at)vt
+	然后对 w,b 做梯度下降操作,更新policy πθ(s)
+	经过足够多的迭代更新,我们同样可以得到最终的收敛结果
+然而,vt是关键,由于一般 policy gradient 例子的 vt 都只能在一个episode结束后才能定下来,
+	所以 policy gradient 就不得不在一个episode结束后才能执行更新
+	对应的 loss变成 j(θ) = ∑ -logπθ(st,at)vt
+			      t
+	当然这样子也没有区别反而更利于计算:loss: j(θ) =E[ ∑ -logπθ(st,at)vt ]
+						        t
+为了得到更有效率的快速的收敛,我们希望能够做到 policy gradient 能 单步更新
+	所以提出 是否有一个其他概念模型 能够代替 vt 可以使得  policy gradient 实现真正的单步更新之余
+	也 与 vt 有差不多的 功能意义
+	我们引入了 Q-learning 的用到的 td_error 代替,但不说明 我们引入了Q-learning的内容!!
+首先我们回顾 Q-learning 的内容!!
+	1,在一个 s 执行了 每个 动作 a 都有一个价值 Q(s,a)
+	  一般在这个 s 上 ,我们会选择最大价值最大 的 a 执行
+	  这个行为 a 价值只是价值,并不是 行为 a 的执行概率,
+	  这个价值看起来有 执行概率一样的特征,因为如果是执行概率,在 s 也是优先执行执行概率最大的行为
+	  但是这个价值的意义比执行概率要大的多
+	2,这时我们 又对比一下 policy gradient  a = πθ(s) ,πθ(s,a)
+	  在 s 经过策略 πθ(s)得到应当执行的行为 ,
+	  πθ(s,a) 表示根据策略 在 s 执行 a 的执行概率!!
+	  πθ(s) 导出的都是 执行概率最大的行为
+	  即 policy gradient 引入了 执行概率的概念,但是 Q-learning 没有
+	3,回到 Q-learning ,
+	  假如 只有成功到达终点的那一步有 r 其他步 r = 0, 
+	  当模型充分训练,就会有这样的结果
+	  在 s 执行高价值a,到达s',在s'也执行高价值 a'
+	  a 与 a' 的价值差表较小, 一般是a'比a的价值大一点
+	  在 s' 执行高价值 a',到达s'',在 s'' 也执行高价值 a''
+	  a 与 a' 的价值差表较小, 一般是a'比a的价值大一点
+	  这就 规划出一套连续动作出来, 也就说, Q-learning 训练出来的一套动作之间有连贯性
+	  而 Q-learning 是通过 td_error: [ r + gama * Q(s_,max_a_) - Q(s,a) ] 来 修正 Q(s,a)的
+	  即:
+		Q(s,a) = Q(s,a) + Alpha * [ r + gama * Q(s',max_a') - Q(s,a) ]
+	  当模型充分训练后, a 与 a' 的价值价值差表较小, 
+	  td_error: [ r + gama * Q(s_,max_a_) - Q(s,a) ] 也相当小 !!!
+	  如果无休止地继续下去, a 与 a' 的价值本身永远在增大, a 与 a' 的价值差却永远在缩小
+	  td_error 也永远在缩小
+	  而所有 s 的其他行为 的价值 却基本保持不变或有机会小幅度变化
+我们使用 td_error 代替 vt  由于 td_error 在每步行动后立即确定下来
+	也就说 loss 可以这样: j(θ) = -logπθ(st,at)td_error,
+	那么 每一步都可以 θ ← θ + α * ∇θ ( logπθ(st,at)td_error )
+	即可以 单步更新 policy πθ(s)了,
+	td_error : r + gama * Q(s_) - Q(s)代替 vt 称为 TD Actor-Critic
+	策略部分 -logπθ(st,at) 是actor , td_error是 Critic
+我们讨论 TD-AC 的可行性原理. 根据 Reinforcement Learning/Actor_Critic_Advantage/AC_CartPole.py具体例子说明
+	ac 用了 td 误差,但斌没有 带入了 Q-leaning 的概念
+	因为 Q-leaning 是用 价值衡量 每个 s 的每个a 所以对应 td_error: r + gama * Q(s_,max_a_) - Q(s,a) 
+	但是 AC 是里 是用价值衡量 S 本身 对应用到的td_error : r + gama * Q(s_) - Q(s)
+	Ac 为 policy πθ(s) 做了一个网络, 为 Q(s) 也做了一个网络
+
+	假如模型充分训练
+	在 s 我们通过策略得到 动作 a,一般都大概率执行策略导出行为
+	s本身价值 Q(s)
+	实际执行a 到达 s', 
+	s本身价值 Q(s),	s'本身价值 Q(s') 都相当大
+	但是他们的 td_error 却相当小	 
+	由于在s执行了策略导出的行为, 所以 -logπθ(st,at) 几乎等于0
+	所以  j(θ) = -logπθ(st,at)td_error 相当小
+	所以更新策略的幅度非常小,而没有实质改变过策略
+	即下次到达 s 时策略也会推荐执行 a 到达 s' 就是说收敛到一个动作上来
+	而且由于游戏奖励的方式,靠近游戏终点的奖励是最大的!!靠近终点的s价值是最大的!!
+	又应为 充分收敛后, j(θ) 都相当小,意味着 td_error 相当小
+	所以对应的收敛的一套行为所经过的所有 s 的价值都是相当大的,
+	而其他不怎么经过的s价值都比较小
+
+	更深入的讨论!!
+	如果 在某 必经 s 小概率执行了 非策略行为 a', 达到 s''
+	s本身价值 还是 Q(s),而且是挺大的值 ,s''因为不是常常经过的,本身价值 Q(s'')一般是比较小的
+	那么, s价值 和 s'价值 td_error 是负数
+	minimize((td_error)^2) 反馈到 s本身价值,让Q(s)更靠近 Q(s''),但不能判断是让 Q(S) 变小还是变大
+	因为有可能 让Q(s)变大一点, Q(s'')变大很多,但是 (td_error)^2 的确变小
+	(与Q-Learning区别是,Q-learning会让 Q(s,a)直接添加 td_error !!来缩小与 Q(s'',a'')价值距离 )
+	由于在s执行了非策略导出的实际行为, 所以 -logπθ(st,at) 相当大的正数	
+	所以  j(θ) = -logπθ(st,at)td_error 是负数
+	minimize j(θ),相当于 增大 -logπθ(st,at) 
+	即让更新策略时,会让策略远离推荐 这个小概率行为 
+	所以更新策略的幅度非常大,或者实质改变了策略	
+	即下次到达 s 时策略或者会推荐执行 a'' 到达 s''
+
+但是 AC 例子 虽然能单步更新 policy 看起来更有效率,但好像没想象中容易收敛??
+	假设1 很多时候,由于大部分直接执行策略导出的行为 所以 -logπθ(st,at) 等于0,不管你td_error有多大
+	      loss : j(θ) 都等于0 所以就 让大部分单步都没有充分对policy做修正,浪费了大量时间
+	假设2,td_error 等于0或者相当小 的时候不说明 Q(s),Q(s')都是相当高,
+	      而 最终收敛的结果是,我们经常经过的s 的Q(s)值是相当高的,
+	      所以这种 td_error 太小的情况会影响到 policy 和 s价值网络的 有效率地更新
+	假设3,minimize((td_error)^2) 修正价值网络 并没有遵循比较明确的修正路径
+	     就是所 我们只知道修正后 td_error: r + gama * Q(s_) - Q(s) 减少了,
+	     但是经过价值网络得到 Q(s_) , Q(s) 都变化,可能都变大,可能都变小,可能还有其他变化
+	     对比 Q-learning的修正方式会发现 Q-learning要求 Q(s_)保持不变,
+	     Q(s) 往Q(s_)贴近这样明确的修正方式来 降低 td_error的
+	     所以有可能这个原因导致 收敛过程反反复复,效果不佳
+补充一点可能并不太完整的 td_error 内容
+	r + gama * Q(s_) - Q(s) -> 0 时
+	意味着 Q(s) = r + gama * Q(s_)
+	说明了RL 的一个马尔科夫模型的基本概念
+	在 s 的价值 等于 从 s 到达 s_ 后得到的奖励 加上 gama乘以s_本身的价值 
+总的来说, AC_CartPole.py 例子比较失败,就是说不能很好地收敛,
+	并不是说不应该使用 AC 模型,而是说使用AC模型时,各方面细节处理还是得比较注意的
+	AC 模型 的讨论就此暂告一段落
+
+	
+
+
+
+
+
+
+
+20180528
+升级版AC : Deep Deterministic Policy Gradient (DDPG)
+参考: https://blog.csdn.net/u013236946/article/details/73243310
+看了代码,发现 这里 policy 直接修正十分奇怪!!更新policy 不是通过 log(πθ(s,a))修正,而是直接通过修正 πθ(s)
+DDPG思维十分奇怪,虽然说是 基于 AC 的 但和AC有着许多本质的区别:
+首先得讨论 DDPG 的算法原理:
+首先俩个部分 actor critic 
+	actor: 即 policy gradient 的 policy : a = πθ(s)
+	critic: 就是 Q-learning 的 在s执行a的价值 : Q(s,a)
+	actor部分 有两个独立网络, 估计网络: a = πθ(s) 和 目标网络: a' = π'θ'(s)
+	critic部分 也有两个独立网络, 估计网络: Q(s,a) 和 目标网络: Q'(s,a)	
+然后是算法过程 
+	每个 epidode 的每一步:
+		经过估计策略网络得到策略行为 a = πθ(s),
+		然后加一点噪音得到实际的操作行为 ai = random(a)
+		游戏执行 ai 到达 s_ 并得到直接奖励 r
+		把每一步 (s,ai,r,s_) 存起来.比如存入 Memory
+	当执行了足够步,或者到达终点后,停止游戏操作,开始更新网络:
+		从 Menory 随机取出 N 条记录 (s,ai,r,s_)
+		对于每条记录:
+			s 通过 估计策略网络得回 a = πθ(s)
+			s,a 通过 估计价值网络得到 Q(s,a)
+			s,ai 通过 估计价值网络得到 Q(s,ai)
+			s_ 通过 目标策略网络得到 a_' = π'θ'(s_)
+			s_,a_' 通过 目标价值网络得到 Q'(s_,a_')
+		然后得到 俩个 误差函数:
+			估计策略网络的误差函数 : jp = 1/N * ∑( Q(s,a) )
+			估计价值网络的误差函数 : jv = 1/N * ∑( (r + gama * Q'(s_,a_') - Q(s,ai))^2 )
+		更新估计网络的参数:
+			修正 估计策略网络 πθ 的 参数 θ :
+				d jp   d 1/N * ∑( Q(s,a) )   d πθ(s)   d 1/N * ∑( Q(s,a) )
+				____ = ___________________ * _____   = ___________________
+				d θ	    d πθ(s)	      d θ             d θ
+				这时,所有的 s, Q(s,a)网络的参数 都作为常数
+			修正 估计价值网络 Q() 的 参数 Φ :
+				d jv   d 1/N * ∑( (r + gama * Q'(s_,a_') - Q(s,ai))^2 )
+				____ = ________________________________________________
+				d Φ                           d Φ
+				这时,所有的 s,ai,r,s_ 还有 Q'(s,a),πθ(s),π'θ'(s_)网络的参数 都作为常数
+		更新目标网络的参数:
+			修正 目标策略网络 π'θ'() 的 参数 θ' :		
+				θ' =  τθ + (1-τ)θ'
+			修正 目标价值网络 Q'() 的 参数 Φ' :
+				Φ' =  τΦ + (1-τ)Φ'	
+	如果是游戏结束时更新的网络,那么这个episode也就完了,开始下个episode
+	如果是游戏中途更新的网络,清空 Memory, 继续执行游戏,并采集新的 (s,ai,r,)到 Memory,
+		为下次网络更新做准备
+
+可见,与 AC 十分不一样,特别是更新策略网络的方式, DDPG 使用到 πθ(s) ,但没有使用 πθ(s,a)
+DDPG 直接通过策略行为得到的最大价值来更新策略网络,
+AC 通过实际行为在策略中的执行概率来更新策略网络.
+学习原理未分析!!
+代码未完整分析,特别是第一個例子代码写得非常迷
+(未完待续)
+实际执行动作是 在以策略导出动作为均值的正太分布里选的动作 
 
 
 
@@ -2436,6 +2658,1347 @@ end function
 
 
 
+20180529
+A3C 并行的AC
+https://blog.csdn.net/u013236946/article/details/73195035
+使用到 tensorflow 的并行组件
+	# 开启一个协调器  
+	coord = tf.train.Coordinator()  
+	#把开启的线程加入主线程，等待threads结束 
+	coord.join(threads) 
+
+
+
+
+
+
+
+
+20180530
+ppo 基于 AC
+创新了一种方法 动态调节 policy πθ(s) 的更新幅度
+policy gradient 通过梯度下降 优化 policy时候 都是通过固定的学习率 alpha 执行的
+这样可能会导致一次更新里,更新过度或者更新不显著的问题.
+即 优化 πθ(s) 梯度下降步伐大小过于 固定
+因此提出使用 动态学习率 alpha 的方法 优化 πθ(s)
+ppo 算法实际上并没有使用 动态学习率 alpha 更新 policy,还是使用固定 alpha
+但是他巧妙的算法实际上达到了如此效果,同样使得 优化 πθ(s) 梯度下降步伐 灵活变动
+ppo是基于google 基于openai TRPO,发布的, DPPO是ppo基础上的并行版 类似A3C 与AC 关系
+同样先看详细的算法:(本例子基于TRPO 与 ppo)
+首先俩个部分 actor critic 
+	actor: 即 policy gradient 的 policy : a = πθ(s)
+	critic: 是 马尔科夫模型 s的价值 : Q(s)
+	actor部分有两个网络 一个是旧网络 πθ',一个是当前网络 πθ
+	critic部分只有一个价值网络
+算法过程:
+	每个 epidode 的每一步:
+		经过策略网络得到策略行为 a = πθ(s),
+		然后加一点噪音得到实际的操作行为 ai = random(a)
+			(这里的方法同样,在以策略导出动作为均值的正太分布里,选出的动作实际的操作行为)
+		游戏执行 ai 到达 s_ 并得到直接奖励 r
+		把每一步 (s,ai,r,) 存起来.比如存入 Memory		
+	当执行了足够步,或者到达终点后,停止游戏操作,开始更新网络:
+		获得对比组的 Q'(s)
+			假如执行了 T 步,存了 T 记录
+			知道 第T步后 将到达 s_T+!, s_T+!对应的价值经过价值网络得到 Q(s_T+1)
+			那么 执行第T步所在的 s_T 的价值是 不用通过价值网络,根据马尔科夫理论得 Q'(s_T) = r_T + gama * Q(s_T+1)
+			然后 执行第T-1步所在的 s_T-1 的价值 Q'(s_T-1) = r_T-1 + gama * Q'(s_T)
+			同理 执行第T-2步所在的 s_T-2 的价值 Q'(s_T-2) = r_T-2 + gama * Q'(s_T-1)
+			即一般地, 执行第 t 步所在的 s_t 的价值 Q'(s_t) = r_t + gama * Q'(s_t+1)
+			也就说,执行了第T步到达的新 s 的价值用价值网络算出, Q(s_T+1)
+			而 从1到T 步本身所处的 s 的价值直接根据马尔科夫理论 叠加导出 Q'(s_t)
+		把 actor的当前策略网络的内容 θ 直接拷贝替换掉  actor的旧策略网络的内容 θ'
+			即: θ' <- θ
+			这时 当前策略网络 跟 旧策略网络 是一样的.
+		计算每一步的 td_error:
+			就是: Q'(s_t) - Q(s_t)
+			就是: r_t + gama * Q'(s_t+1) - Q(s_t)
+			与以往不一样的是,以往是: r_t + gama * Q'(s_t+1) - Q(s_t)
+			即以往的 s_t+1 也是 Q()价值网络输出, 而现在的 s_t+1, 是通过根据马尔科夫理论得到
+		更新 actor:
+			得到 loss: 
+			                πθ(s_t)
+			j(θ) = 1/T  ∑ ( _______   * (r_t + gama * Q'(s_t+1) - Q(s_t))  -  lamda * kl(πθ(s_t),πθ'(s_t))
+			            t   πθ'(s_t)
+
+			然后第一次更新当前策略网络 :  θ <- θ +  alpha ( d j(θ) / d θ)  
+		  		(注意,第一次更新旧策略网络 πθ'(s_t)前,θ与θ'相等, 
+				所以每一步的kl散度为0 : kl(πθ(s_t),πθ'(s_t) 等于0)
+				注意,θ' 更新 actor 整个过程中都看作常数不改变
+			第一次更新当前策略网络后, 重新计算 每一步的kl散度,并求出 均值 kl_mean
+				
+			kl_mean = 1/T  ∑ ( kl(πθ(s_t),πθ'(s_t))
+			               t
+			分析 kl_mean: 
+			如果 kl_mean 超过阀值, 表示 更新后的当前策略网络 πθ(s_t) 比起 πθ'(s_t) 优化幅度比较显著
+				结束这次 actor 的更新
+			如果 kl_mean 太小, 表示 更新后的当前策略网络 πθ(s_t) 比起 πθ'(s_t) 优化幅度比较小
+				根据 kl_mean 修正 lamda 
+				把当前新 θ lamda 代回 loss: j(θ)
+				然后执行第二次 θ <- θ +  alpha ( d j(θ) / d θ)  			
+				重复 分析 kl_mean,
+				.....
+			如果反复执行了 x 次 (比如10次) θ <- θ +  alpha ( d j(θ) / d θ) 后,
+				kl_mean 还是没有超过阀值,
+				也就此作罢, 结束这次 actor 的更新
+		更新 critic
+			minimize ( (r_t + gama * Q'(s_t+1) - Q(s_t))^2 )
+			从而更新实际的 价值网络
+	如果是游戏结束时更新的网络,那么这个episode也就完了,开始下个episode
+	如果是游戏中途更新的网络,清空 Memory, 继续执行游戏,并采集新的 (s,ai,r,)到 Memory,
+		为下次网络更新做准备
+学习原理分析(未完待续)
+
+
+
+
+
+
+
+20180531
+关于机械臂 运动 的问题 分析
+机械臂 追逐到达 蓝点 , 我们可以容易感受到 通过强化学习,机械臂是可以迅速到达的,
+	但是,如果 蓝点每个episode 都在不同的地方, 那这可怎么弄???
+就相当与 学习走出迷宫的游戏, 只要迷宫是固定的,总会学习到路径
+	但是如果 每个episode 迷宫的陷阱和出口都不同,那还可以顺利学习走出迷宫么?
+	这种情况下,我们要吧这个动态的迷宫扩展成一个抽象的更高维度,但却是静态的迷宫
+	那么在这个静态的迷宫下,也同理总会学习到路径.
+	那么如何表达 agent 在走一个抽象的静态迷宫?
+	其实就是扩展 s 向量维度 本来 s: {x,y}
+	现在扩成 s : {x,y,陷阱x,陷阱y,终点x,终点y}
+	虽然说 每个episode内, 陷阱x,陷阱y,终点x,终点y 是固定的,但是还是参与的训练上来
+回到机械臂
+	s的维度足够多还包括 蓝点参数的时候,是可以训练收敛的
+	可以认为 机械臂是到达一个高维固定的蓝点上
+
+
+
+
+
+
+
+
+20180601
+安装 ROS: 
+https://blog.csdn.net/hebbely/article/details/70598208
+设置公钥什么的暂时不理解,所以记录下log:
+infortech-ubuntu-1404@infortechubuntu1404-HP-EliteDesk-880-G2-TWR:~$ sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+[sudo] password for infortech-ubuntu-1404: 
+infortech-ubuntu-1404@infortechubuntu1404-HP-EliteDesk-880-G2-TWR:~$ wget http://packages.ros.org/ros.key -O - | sudo apt-key add -
+--2018-06-01 09:33:14--  http://packages.ros.org/ros.key
+正在解析主机 packages.ros.org (packages.ros.org)... 64.50.233.100, 64.50.236.52, 140.211.166.134, ...
+正在连接 packages.ros.org (packages.ros.org)|64.50.233.100|:80... 已连接。
+已发出 HTTP 请求，正在等待回应... 200 OK
+长度： 1162 (1.1K)
+正在保存至: “STDOUT”
+100%[======================================>] 1,162       --.-K/s   用时 0s    
+2018-06-01 09:33:15 (140 MB/s) - 已写入至标准输出 [1162/1162]
+OK
+
+视野: https://blog.csdn.net/wxflamy/article/list/2?t=1
+
+OpenSceneGraph（简称OSG）是一个开放源码，跨平台的图形开发包，
+它为诸如飞行器仿真，游戏，虚拟现实，科学计算可视化这样的高性能图形应用程序开发而设计。
+它基于场景图的概念，它提供一个在OpenGL之上的面向对象的框架，
+从而能把开发者从实现和优化底层图形的调用中解脱出来，并且它为图形应用程序的快速开发提供很多附加的实用工具
+
+ROS-Industrial
+需要前期准备的安装环境：
+1. ROS kinetic系统
+2. ROS-Industrial 的 universal_robot包
+UR5机器人控制器的镜像版本是 3.0。
+驱动兼容性
+需要检查 universal_robot包的驱动和控制器的兼容性。
+universal_robot包通过以太网连接与硬件进行通信，当建立连接的时候ROS-Industrial上传由URScript编写的程序，
+URScript是类似python的UR机器人自己的脚本语言。这段程序负责监听ROS-Industrial的 simple_messages 包发送的消息信息，并将这些消息解释成硬件指令。
+
+MoveIt! RViz ROS模拟机器人模块 : https://blog.csdn.net/wxflamy/article/details/79160781
+				https://blog.csdn.net/xuehuafeiwu123/article/details/54561737
+				https://blog.csdn.net/jayandchuxu/article/details/54693870
+				http://wiki.ros.org/ur_gazebo
+				https://www.ncnynl.com/category/ros-moveit/
+				http://moveit.ros.org/install/
+
+用URDF从零开始构建一个机器人模型 :https://blog.csdn.net/wxflamy/article/details/79235493
+
+RVIZ
+
+
+自己机子安装 ROS
+william@william-HP:~$ sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu trusty main" > /etc/apt/sources.list.d/ros-latest.list' 
+[sudo] william 的密码： 
+william@william-HP:~$ wget http://packages.ros.org/ros.key -O - | sudo apt-key add -
+--2018-06-03 18:53:46--  http://packages.ros.org/ros.key
+正在解析主机 packages.ros.org (packages.ros.org)... 64.50.233.100, 140.211.166.134, 64.50.236.52, ...
+正在连接 packages.ros.org (packages.ros.org)|64.50.233.100|:80... 已连接。
+已发出 HTTP 请求，正在等待回应... 200 OK
+长度： 1162 (1.1K)
+正在保存至: “STDOUT”
+
+-                   100%[===================>]   1.13K  --.-KB/s    in 0s      
+
+2018-06-03 18:53:47 (101 MB/s) - 已写入至标准输出 [1162/1162]
+OK
+
+视野: https://blog.csdn.net/wxflamy/article/list/2?t=1
+
+OpenSceneGraph（简称OSG）是一个开放源码，跨平台的图形开发包，
+它为诸如飞行器仿真，游戏，虚拟现实，科学计算可视化这样的高性能图形应用程序开发而设计。
+它基于场景图的概念，它提供一个在OpenGL之上的面向对象的框架，
+从而能把开发者从实现和优化底层图形的调用中解脱出来，并且它为图形应用程序的快速开发提供很多附加的实用工具
+
+ROS-Industrial
+需要前期准备的安装环境：
+1. ROS kinetic系统
+2. ROS-Industrial 的 universal_robot包
+UR5机器人控制器的镜像版本是 3.0。
+驱动兼容性
+需要检查 universal_robot包的驱动和控制器的兼容性。
+universal_robot包通过以太网连接与硬件进行通信，当建立连接的时候ROS-Industrial上传由URScript编写的程序，
+URScript是类似python的UR机器人自己的脚本语言。这段程序负责监听ROS-Industrial的 simple_messages 包发送的消息信息，并将这些消息解释成硬件指令。
+
+MoveIt! RViz ROS模拟机器人模块 : https://blog.csdn.net/wxflamy/article/details/79160781
+				https://blog.csdn.net/xuehuafeiwu123/article/details/54561737
+				https://blog.csdn.net/jayandchuxu/article/details/54693870
+				http://wiki.ros.org/ur_gazebo
+				https://www.ncnynl.com/category/ros-moveit/
+
+用URDF从零开始构建一个机器人模型 :https://blog.csdn.net/wxflamy/article/details/79235493
+
+RVIZ
+
+leap motion :做手势识别的要有设备才行,只有软件没用!1
+
+开源云台算法,开源3d打印算法,了解pwm电机控制与精度
+
+
+wil halcon  视觉库
+
+ROS 入门:  https://www.ncnynl.com/archives/201608/503.html
+source /opt/ros/indigo/setup.bash
+	在每次打开终端时你都需要先运行上面这条命令后才能运行ros相关的命令
+	为了避免这一繁琐过程，你可以事先在.bashrc文件
+catkin方式创建ROS工作空间  暂时不学 rosbuild,因为快被淘汰
+	mkdir -p ~/catkin_ws/src
+	cd ~/catkin_ws/
+	catkin_make
+	cd ~/catkin_ws/src
+	即使这个工作空间是空的（在'src'目录中没有任何软件包，只有一个CMakeLists.txt链接文件），你依然可以编译它
+	cd ~/catkin_ws/
+	当前目录应该能看到'build'和'devel'这两个文件夹。在'devel'文件夹里面你可以看到几个setup.sh文件。
+	source这些文件中的任何一个都可以将当前工作空间设置在ROS工作环境的最顶层，
+	source devel/setup.bash
+	要想保证工作空间已配置正确需确保ROS_PACKAGE_PATH环境变量包含你的工作空间目录，采用以下命令查看：
+	echo $ROS_PACKAGE_PATH
+	/home/catkin_ws/src:/opt/ros/indigo/share:/opt/ros/indigo/stacks
+ROS文件系统概念 针对catkin方式
+	使用到的教程
+	sudo apt-get install ros-indigo-ros-tutorials
+	基本概念:
+	Packages: 软件包，是ROS应用程序代码的组织单元，每个软件包都可以包含程序库、可执行文件、脚本或者其它手动创建的东西。
+	Manifest (package.xml): 清单，是对于'软件包'相关信息的描述,用于定义软件包相关元信息之间的依赖关系，这些信息包括版本、维护者和许可协议等。
+	在catkin中，你可以定义综合包来集成相似包并实现将多个包驻留在单个VCS库。这两个特征可替换功能包集的功能。
+	rospack find roscpp	//示范获取软件包有关信息 这里获取 rosapp 软件包的有关信息
+	roscd roscpp		//直接切换(cd)工作目录到某个软件包或者软件包集当中 ,例如 cd到 rosapp 软件包
+		跳到了 /opt/ros/indigo/share/roscpp
+		roscd只能切换到那些路径已经包含在ROS_PACKAGE_PATH环境变量中的软件包
+    		要查看ROS_PACKAGE_PATH中包含的路径可以输入：echo $ROS_PACKAGE_PATH
+		/home/catkin_ws/src:/opt/ros/indigo/share:/opt/ros/indigo/stacks
+		可见 /opt/ros/indigo/share/roscpp 在 $ROS_PACKAGE_PATH 之中
+	roscd roscpp/cmake	//cd到软件包里的子目录 例如 cd到 roscpp软件包的cmake 即/opt/ros/indigo/share/roscpp/cmake
+	roscd log		//cd到ROS保存日记文件的目录下
+	rosls roscpp_tutorials	//列出 软件包下的内容 例如 列出 roscpp_tutorials软件包里的内容
+	输入命令时 不妨尝试使用 Tab 补全内容,例如软件包名字
+catkin程序包 (软件包)
+	一个catkin程序包必须符合以下要求：
+	1.必须包含catkin compliant package.xml文件，这个package.xml文件提供有关程序包的元信息。
+	2.必须包含一个catkin 版本的CMakeLists.txt文件，而Catkin metapackages中必须包含一个对CMakeList.txt文件的引用。
+	3.每个目录下只能有一个程序包。这意味着在同一个目录下不能有嵌套的或者多个程序包存在。
+		例如:
+		workspace_folder/        -- WORKSPACE工作空间
+		  src/                   -- SOURCE SPACE 源码目录
+		    CMakeLists.txt       -- 'Toplevel' CMake file, provided by catkin
+		    package_1/		 -- catkin程序1
+		      CMakeLists.txt     -- CMakeLists.txt file for package_1
+		      package.xml        -- Package manifest for package_1
+		    ...
+		    package_n/		 -- catkin程序n
+		      CMakeLists.txt     -- CMakeLists.txt file for package_n
+		      package.xml        -- Package manifest for package_n
+	创建一个catkin程序包
+		cd ~/catkin_ws/src
+		catkin_create_pkg beginner_tutorials std_msgs rospy roscpp
+			//创建一个名为'beginner_tutorials'的新程序包,依赖于 std_msgs、roscpp和rospy
+			//这些依赖包信息会保存在 package.xml文件中
+			//查看依赖信息: roscd beginner_tutorials && cat package.xml
+			//<package>
+			//...
+			//  <buildtool_depend>catkin</buildtool_depend>
+			//  <build_depend>roscpp</build_depend>
+			//  <build_depend>rospy</build_depend>
+			//  <build_depend>std_msgs</build_depend>
+			//...
+			//</package>
+		rospack depends1 beginner_tutorials
+			//查看 beginner_tutorials 的一级依赖,即 std_msgs、roscpp和rospy
+		rospack depends1 beginner_tutorials
+			//查看 beginner_tutorials 用到的间接的直接的所有依赖包
+	自定义 package.xml
+		//注释符号
+		<!-- this is Examples -->
+		//描述标签例子
+		<description>The beginner_tutorials package</description>
+		//维护者标签
+		<!-- One maintainer tag required, multiple allowed, one person per tag --> 
+		<!-- Example:  -->
+ 		<!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
+ 		<maintainer email="user@todo.todo">user</maintainer>
+		//许可标签
+		//一些常见的开源许可协议有BSD、MIT、Boost Software License、GPLv2、GPLv3、LGPLv2.1和LGPLv3
+		<!-- One license tag required, multiple allowed, one license per tag -->
+		<!-- Commonly used license strings: -->
+ 		<!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
+		<license>BSD</license>
+		//依赖项目标签
+		<!-- The *_depend tags are used to specify dependencies -->
+		<!-- Dependencies can be catkin packages or system dependencies -->
+		<!-- Examples: -->
+		<!-- Use build_depend for packages you need at compile time: -->
+		<!--   <build_depend>genmsg</build_depend> -->
+		<!-- Use buildtool_depend for build tool packages: -->
+		<!--   <buildtool_depend>catkin</buildtool_depend> -->
+		<!-- Use run_depend for packages you need at runtime: -->
+		<!--   <run_depend>python-yaml</run_depend> -->
+		<!-- Use test_depend for packages you need only for testing: -->
+		<!--   <test_depend>gtest</test_depend> -->
+		<buildtool_depend>catkin</buildtool_depend>
+		<build_depend>roscpp</build_depend>
+		<build_depend>rospy</build_depend>
+		<build_depend>std_msgs</build_depend>
+编译catkin程序包
+	catkin_make 是一个命令行工具，它简化了catkin的标准工作流程。
+	可以认为catkin_make是在CMake标准工作流程中依次调用了cmake 和 make
+	回顾 cmake 项目编译的一般过程: (注意,运行以下方式命令是无效的，因为它只是一个演示CMake工作流程的例子)
+		$ mkdir build
+		$ cd build
+		$ cmake ..
+		$ make
+		$ make install  # (可选)
+	对比 catkin, 只要cd 到ROS工作空间, 以下命令就可以把 src文件夹下的所有catkin程序包都编译
+		$ catkin_make
+		$ catkin_make install  # (可选)
+	catkin 工作空间下
+	build目录是build space的默认所在位置，同时cmake和make也是在这里被调用来配置并编译你的程序包。
+	devel目录是devel space的默认所在位置, 同时也是在你安装程序包之前存放可执行文件和库文件的地方
+ROS 图（graph）概念
+	Nodes:节点,一个节点即为一个可执行文件，它可以通过ROS与其它节点进行通信。
+		ROS节点可以使用ROS客户库与其他节点通信。
+		节点可以发布或接收一个话题。
+		节点也可以提供或使用某种服务。
+	Messages:消息，消息是一种ROS数据类型，用于订阅或发布到一个话题。
+	Topics:话题,节点可以发布消息到话题，也可以订阅话题以接收消息。
+	Master:节点管理器，ROS名称服务 (比如帮助节点找到彼此)。
+	rosout: ROS中相当于stdout/stderr。
+	roscore: 主机+ rosout + 参数服务器 (参数服务器会在后面介绍)。
+		roscore 是你在运行所有ROS程序前首先要运行的命令
+		如果roscore不能初始化并提示缺少权限，这可能是因为~/.ros文件夹归属于root用户（只有root用户才能访问）
+		修改该文件夹的用户归属关系：
+		sudo chown -R <your_username> ~/.ros
+	ROS客户端库: 允许使用不同编程语言编写的节点之间互相通信:
+	        rospy = python 客户端库
+	        roscpp = c++ 客户端库
+	        rosjs = javascripts客户端库
+	        rosjava = java客户端库
+ROS交互原理演示:
+	roscore 在一个终端执行后,在另一个终端执行 rosnode list 得到 /rosout	
+		这表示当前只有一个节点在运行: rosout。
+		因为这个节点用于收集和记录节点调试输出信息，所以它总是在运行的。
+		rosnode info /rosout 命令返回的是关于一个特定节点的信息。
+	rosrun turtlesim turtlesim_node  
+		在一个新端口执行
+		rosrun 使用包名直接运行一个包内的节点(而不需要知道这个包的路径)。
+		这里 执行了  turtlesim软件包 的 turtlesim_node 节点 ,打开了一个乌龟窗口
+		这时,在另一个终端执行 rosnode list 得到 /rosout /turtlesim  俩个在个工作的节点
+	rosrun turtlesim turtle_teleop_key
+		在一个新端口执行
+		这时是执行了一个键盘事件,然后在这个终端按键盘方向键,乌龟窗口的乌龟会动
+		这时,在另一个终端执行 rosnode list 得到 /rosout /turtlesim  /teleop_turtle 三个在个工作的节点
+		turtlesim_node节点 和 turtle_teleop_key节点 之间是通过一个ROS话题来互相通信的。
+			turtle_teleop_key 在一个话题上发布按键输入消息，
+			turtlesim 则订阅该话题以接收该消息。
+	rosrun rqt_graph rqt_graph
+		在一个新端口执行	
+		打开 rqt_graph 窗口来显示当前运行的节点和话题。
+		可以看到的 turtlesim_node和turtle_teleop_key节点正通过一个名为/turtle1/cmd_vel的话题来互相通信
+		这时,在另一个终端执行 rosnode list 得到四个在个工作的节点
+			/rosout 
+			/turtlesim  
+			/teleop_turtle
+			/rqt_gui_py_node_10588
+	rostopic echo /turtle1/cmd_vel
+		在一个新端口执行
+		可以监视 topic /turtle1/cmd_vel 的通讯内容
+		在另一个终端执行 rosnode list 得到五个在个工作的节点
+			/rosout 
+			/turtlesim  
+			/teleop_turtle
+			/rqt_gui_py_node_10588		//rqt_graph 窗口 监视节点
+			/rostopic_10707_1528265808190	//这个是 rostopic ho /turtle1/cmd_vel 生成的监视节点
+		在 rqt_graph 窗口 刷新一下,发现 turtle_teleop_key节点 通过一个名为/turtle1/cmd_vel的话题
+		同时給 turtlesim_node 和 /rostopic_10707_1528265808190 发信息
+		topic /turtle1/cmd_vel  通过为 节点间传递 Messages 实现通讯
+		这时的 turtle_teleop_key节点 是 消息发布器
+		turtlesim_node 和 /rostopic_10707_1528265808190 节点 都是 消息订阅器
+	rostopic type /turtle1/cmd_vel
+		查看所发布话题的消息类型
+		得到 geometry_msgs/Twist
+	rosmsg show geometry_msgs/Twist
+		查看所消息的详细情况,得到:
+		geometry_msgs/Vector3 linear
+		  float64 x
+		  float64 y
+		  float64 z
+		geometry_msgs/Vector3 angular
+		  float64 x
+		  float64 y
+		  float64 z
+	rostopic pub -1 /turtle1/cmd_vel geometry_msgs/Twist -- '[2.0, 0.0, 0.0]' '[0.0, 0.0, 1.8]'
+		试着手动在 topic /turtle1/cmd_vel 发布一条消息
+		/turtlesim 会接收到,乌龟窗口的乌龟会画出一段圆弧
+		-1 参数,后面接 指定的topic
+		-- 后接数据
+	rostopic pub /turtle1/cmd_vel geometry_msgs/Twist -r 1 -- '[2.0, 0.0, 0.0]' '[0.0, 0.0, 1.8]'	
+		发布一个稳定的命令流
+		这条命令以1Hz的频率发布速度命令到速度话题上
+		刷新 rosnode list 发现多了一个 节点 /rostopic_10900_1528267591378
+		刷性 rqt_graph 窗口 发现多了一个 这个多出的节点是一个新的 topic /turtle1/cmd_vel 的消息发布器
+		rostopic hz /turtle1/pose
+			监测 turtlesim_node 乌龟窗口的乌龟 受到指令后的变化情况,
+			间接了解到 的 /rostopic_10900_1528267591378 给 turtlesim_node 传的消息的频率,大概 62hz 发一次
+			其实这里 开通了一个新的 topic /turtle1/pose 消息发布者是 turtlesim_node
+			没有消息订阅者,但消息直接输出到终端上
+	rostopic type /turtle1/cmd_vel | rosmsg show
+		获取关于话题的更深层次的信息
+	rosrun rqt_plot rqt_plot
+		打开 rqt_plot 窗口监视 topic 的变化曲线??
+		同样 使用 topic /turtle1/pose 
+		消息发布者是 turtlesim_node 不断把乌龟的位置信息发送到 rqt_plot 窗口 显示
+		但是 rqt_plot 窗口 不算ROS体系内的节点内容,所以不算是真征意义上的 消息订阅者
+		rqt_graph 里头也没有看到 代表 rqt_plot 的节点
+继续讨论 服务 的演示
+	服务（services）是节点之间通讯的另一种方式。
+	服务允许节点发送请求（request） 并获得一个响应（response）
+	rosservice list         输出可用服务的信息
+		/clear						//turtlesim_node提供的基本可用的服务
+		/kill
+		/reset
+		/spawn
+		/rosout/get_loggers				// /rosout节点提供的服务
+		/rosout/set_logger_level
+		/rqt_gui_py_node_10588/get_loggers
+		/rqt_gui_py_node_10588/set_logger_level
+		/teleop_turtle/get_loggers
+		/teleop_turtle/set_logger_level
+		/turtle1/set_pen
+		/turtle1/teleport_absolute
+		/turtle1/teleport_relative
+		/turtlesim/get_loggers
+		/turtlesim/set_logger_level
+	rosservice type clear		查看 clear 服务的类型
+		std_srvs/Empty   
+		//服务的类型为空（empty),这表明在调用这个服务是不需要参数（比如，请求不需要发送数据，响应也没有数据）
+	rosservice call clear		清除了turtlesim_node的背景上的轨迹
+	rosservice type spawn | rossrv show	查看 spawn 服务的类型
+		type spawn | rossrv show
+		float32 x
+		float32 y
+		float32 theta
+		string name
+		---
+		string name
+	rosservice call spawn 2 2 0.2 "yui"	产生的一只新乌龟,名字为 yui
+		name: yui	
+继续讨论 参数 的演示
+	rosparam使得我们能够存储并操作ROS参数服务器（Parameter Server）上的数据
+	参数服务器能够存储整型、浮点、布尔、字符串、字典和列表等数据类型。
+	rosparam使用YAML标记语言的语法。
+	一般而言，YAML的表述很自然：	
+	    1是整型
+	    1.0是浮点型
+	    one是字符串
+	    true是布尔
+	    [1,2,3]是整型列表
+	    {a:b,c:d}是字典
+	rosparam list			获取参数
+		/background_b		这三个是 turtlesim_node 公开的参数
+		/background_g
+		/background_r
+		/roslaunch/uris/aqy:51932
+		/run_id
+	rosparam set background_r 150	修改参数值,但是仅仅修改了而已
+	rosservice call clear		申请 turtlesim_node 的clear服务,  使得修改后的参数生效
+		这时 乌龟窗口背景变色
+	rosparam get /			显示参数服务器上的所有内容
+		background_b: 255
+		background_g: 86
+		background_r: 150
+		rosdistro: 'indigo
+		...
+	rosparam dump params.yaml	把所有参数都保存起来存入  params.yaml
+	rosparam load params.yaml	把params.yaml 的内容 写入修改 参数服务器上,(还要rosservice call clear后参数变化才生效)
+rqt_console		
+	rqt_console属于ROS日志框架(logging framework)的一部分，用来显示节点的输出日志信息
+	rqt_logger_level允许我们修改节点运行时输出信息的日志等级（logger levels）
+	logger levels包括 DEBUG、WARN、INFO和ERROR
+	日志的详细说明: https://www.ncnynl.com/archives/201608/504.html
+roslaunch
+	roscd beginner_tutorials	回到之前的程序包 
+		(如果失败,是因为新打开了的中端,ROS_PACKAGE_PATH没有包含制定路径,)
+		可这样 export ROS_PACKAGE_PATH=/home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws:$ROS_PACKAGE_PATH
+		添加上路径了 重新 roscd beginner_tutorials
+	mkdir launch && cd launch
+	gedit turtlemimic.launch 	//包含内容:
+	   <launch>
+	   
+	     <group ns="turtlesim1">
+	       <node pkg="turtlesim" name="sim" type="turtlesim_node"/>
+	     </group>
+	   
+	     <group ns="turtlesim2">
+	       <node pkg="turtlesim" name="sim" type="turtlesim_node"/>
+	     </group>
+	   
+	     <node pkg="turtlesim" name="mimic" type="mimic">
+	       <remap from="input" to="turtlesim1/turtle1"/>
+	       <remap from="output" to="turtlesim2/turtle1"/>
+	     </node>
+	   
+	   </launch>
+	roslaunch beginner_tutorials turtlemimic.launch	
+		启动了两个乌龟擦窗口
+	rostopic pub /turtlesim1/turtle1/cmd_vel geometry_msgs/Twist -r 1 -- '[2.0, 0.0, 0.0]' '[0.0, 0.0, -1.8]'
+		给其中一个窗口 发指令,会看到 两个窗口几乎同时画圆
+		rosrun rqt_graph rqt_graph 查看话题 消息 节点的关系
+创建ROS消息
+	msg文件就是一个描述ROS中所使用消息类型的简单文本。它们会被用来生成不同语言的源代码。
+	msg文件存放在package的msg目录下，srv文件则存放在srv目录下
+	msg文件实际上就是每行声明一个数据类型和变量名。
+		int8, int16, int32, int64 (plus uint*) 
+		float32, float64, string, time, 
+		duration other msg files variable-length array[] and fixed-length array[C]
+	创建一个 msg
+	roscd beginner_tutorials	//来到我们之前做的示例程序包
+	mkdir msg
+	echo "int64 num" > msg/Num.msg	//给 msg文件 添加内容
+	beginner_tutorials 的 package.xml, 添加:
+		<build_depend>message_generation</build_depend>
+		<exec_depend>message_runtime<exec_depend>
+		表示 在构建的时候，我们只需要"message_generation"。
+		表示 在运行的时候，我们只需要"message_runtime"。
+	beginner_tutorials 的 CMakeLists.txt,
+		修改 (增加对message_generation的依赖,这样就可以生成消息)
+		find_package(catkin REQUIRED COMPONENTS
+		  roscpp
+		  rospy
+		  std_msgs
+		  message_generation		//添加上的
+		)
+		还有 确保你设置了运行依赖
+		catkin_package(
+		  ...
+		  CATKIN_DEPENDS message_runtime	//添加上的
+		  ...)	
+		还有修改	
+		add_message_files(
+		  FILES
+		  Num.msg
+		)	
+		添加
+		generate_messages(
+		  DEPENDENCIES
+		  std_msgs		//例子是依赖std_msgs
+		)
+	rosmsg show beginner_tutorials/Num	通过rosmsg show命令，检查ROS是否能够识别我们建立的消息
+		int64 num
+	rosmsg show Num 	如果你忘记了消息所在的package，你也可以省略掉package名
+		[beginner_tutorials/Num]:
+		int64 num
+创建ROS服务
+	服务(srv): 一个srv文件描述一项服务。它包含两个部分：请求和响应。
+	创建一个 srv
+	roscd beginner_tutorials
+	mkdir srv
+	roscp rospy_tutorials AddTwoInts.srv srv/AddTwoInts.srv	
+		不再自己新建服务,可以使用别的程序包已经有的服务,这里我们拷贝了一个别人的服务
+		gedit 打开 AddTwoInts.srv 看到
+			int64 a
+			int64 b
+			---
+			int64 sum
+		"---"前是请求内容, "---"后是响应的内容
+	beginner_tutorials 的 package.xml, 添加:
+		<build_depend>message_generation</build_depend>
+		<exec_depend>message_runtime<exec_depend>
+		表示 在构建的时候，我们只需要"message_generation"。	
+		表示 在运行的时候，我们只需要"message_runtime"。
+		两者同样有效于 服务srv
+	beginner_tutorials 的 CMakeLists.txt,	
+		修改 (增加对message_generation的依赖,这项也有生成服务的意思)
+		find_package(catkin REQUIRED COMPONENTS
+		  roscpp
+		  rospy
+		  std_msgs
+		  message_generation		//添加上的
+		)
+		修改
+		add_service_files(
+		  FILES
+		  AddTwoInts.srv
+		)
+		添加 (同样对服务有效)
+		generate_messages(
+		  DEPENDENCIES
+		  std_msgs		//例子是依赖std_msgs
+		)
+	rossrv show beginner_tutorials/AddTwoInts	通过rossrv show命令，检查ROS是否能够识别我们建立的服务
+		int64 a
+		int64 b
+		---
+		int64 sum
+	rossrv show AddTwoInts		如果你忘记了消息所在的package，你也可以省略掉package名
+		[beginner_tutorials/AddTwoInts]:
+		int64 a
+		int64 b
+		---
+		int64 sum
+重新编译,把新建立的 msg srv 编译到程序包里
+	cd /home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws
+	catkin_make
+	所有在msg路径下的.msg文件都将转换为ROS所支持语言的源代码。
+	生成的C++头文件将会放置在~/catkin_ws/devel/include/beginner_tutorials/
+	Python脚本语言会在 ~/catkin_ws/devel/lib/python2.7/dist-packages/beginner_tutorials/msg目录下创建。
+	lisp文件会出现在~/catkin_ws/devel/share/common-lisp/ros/beginner_tutorials/msg/路径下.
+	详尽的消息格式请参考Message Description Language 页面	
+编写简单的消息发布器和订阅器 (C++ catkin)
+	学会创建消息和服务后,就得开始尝试建立 消息发布和消息订阅器了
+	roscd beginner_tutorials
+	mkdir -p src
+	写一个 talker.cpp 消息发布器节点
+	#include "ros/ros.h"   //是一个实用的头文件，它引用了ROS系统中大部分常用的头文件
+	#include "std_msgs/String.h"	//引用了std_msgs/String 消息, 它存放在std_msgs package里，是由String.msg文件自动生成的头文件
+	#include <sstream>
+
+	int main(int argc, char **argv)
+	{
+	  ros::init(argc, argv, "talker");	//初始化ROS。它允许ROS通过命令行进行名称重映射 在这里指定我们节点的名称——必须唯一
+						//这里的名称必须是一个base name，不能包含/。
+	  ros::NodeHandle n;	//为这个进程的节点创建一个句柄,
+				//第一个创建的NodeHandle会为节点进行初始化，最后一个销毁的会清理节点使用的所有资源。
+	  ros::Publisher chatter_pub = n.advertise<std_msgs::String>("chatter", 1000);
+		//告诉master我们将要在chatter topic上发布一个std_msgs/String的消息
+		//这样master就会告诉所有订阅了chatter topic的节点，将要有数据发布
+		//第二个参数是发布序列的大小
+		//如果发布的消息太快，缓冲区中的消息在大于1000个的时候就会开始丢弃先前发布的消息。
+		//NodeHandle::advertise() 
+		//返回一个 ros::Publisher对象,它有两个作用:
+            	//它有一个 publish()成员函数可以让你在topic上发布消息；
+            	//如果消息类型不对,它会拒绝发布。
+	  ros::Rate loop_rate(10);
+		//ros::Rate对象可以允许你指定自循环的频率。
+		//它会追踪记录自上一次调用Rate::sleep()后时间的流逝，并休眠直到一个频率周期的时间。
+		//在这个例子中，我们让它以10hz的频率运行。
+	
+	  int count = 0;
+	  while (ros::ok())	//roscpp会默认安装一个SIGINT句柄，它负责处理Ctrl-C键盘操作——使得ros::ok()返回FALSE。
+	  {			//ros::ok()返回false，如果下列条件之一发生:
+				//	SIGINT接收到(Ctrl-C)
+				//	被另一同名节点踢出ROS网络
+				//	ros::shutdown()被程序的另一部分调用
+				//	所有的ros::NodeHandles都已经被销毁
+				//一旦ros::ok()返回false, 所有的ROS调用都会失效。	
+	    std_msgs::String msg;	
+	    std::stringstream ss;
+	    ss << "hello world " << count;
+	    msg.data = ss.str();
+			//我们使用一个由msg file文件产生的‘消息自适应’类在ROS网络中广播消息。
+			//现在我们使用标准的String消息，它只有一个数据成员"data"
+	    ROS_INFO("%s", msg.data.c_str());
+			//ROS_INFO和类似的函数用来替代printf/cout.
+	    chatter_pub.publish(msg);	//现在我们已经向所有连接到chatter topic的节点发送了消息。
+	    ros::spinOnce();
+			//在这个例子中并不是一定要调用ros::spinOnce()，因为我们不接受回调。
+			//然而，如果你想拓展这个程序，却又没有在这调用ros::spinOnce()，你的回调函数就永远也不会被调用。
+			//所以，在这里最好还是加上这一语句。
+	    loop_rate.sleep();
+			//这条语句是调用ros::Rate对象来休眠一段时间以使得发布频率为10hz
+	    ++count;
+	  }
+	  return 0;
+	}
+
+	写一个 订阅器节点listener.cpp
+	#include "ros/ros.h"
+	#include "std_msgs/String.h"
+
+	void chatterCallback(const std_msgs::String::ConstPtr& msg)
+	{					
+	  // chatterCallback是一个回调函数，当消息到达chatter topic的时候就会被调用
+	  ROS_INFO("I heard: [%s]", msg->data.c_str());
+	}
+
+	int main(int argc, char **argv)
+	{
+	  ros::init(argc, argv, "listener");	
+	  ros::Subscriber sub = n.subscribe("chatter", 1000, chatterCallback);
+		//告诉master我们要订阅chatter topic上的消息	
+		//当有消息到达topic时，ROS就会调用chatterCallback()函数。
+		//第二个参数是队列大小，以防我们处理消息的速度不够快，在缓存了1000个消息后，再有新的消息到来就将开始丢弃先前接收的消息。
+		//NodeHandle::subscribe()返回ros::Subscriber对象,必须让它处于活动状态直到你不再想订阅该消息。
+		//当这个对象销毁时，它将自动退订上的消息。
+		//有各种不同的NodeHandle::subscribe()函数，允许你指定类的成员函数，
+		//甚至是Boost.Function对象可以调用的任何数据类型。roscpp overview 提供了更为详尽的信息。
+	  ros::spin();
+		//ros::spin()进入自循环，可以尽可能快的调用消息回调函数
+		//如果没有消息到达，它不会占用很多CPU，所以不用担心。
+		//一旦ros::ok()返回FALSE，ros::spin()就会立刻跳出自循环。
+
+
+	  return 0;
+	}
+编译发布器和订阅器
+	在beginner_tutorials 的 CMakeLists.txt文件末尾加入几条语句:
+		include_directories(include ${catkin_INCLUDE_DIRS})
+		add_executable(talker src/talker.cpp)
+		target_link_libraries(talker ${catkin_LIBRARIES})
+		add_dependencies(talker beginner_tutorials_generate_messages_cpp)	//为可执行文件添加对生成的消息文件的依赖
+		add_executable(listener src/listener.cpp)
+		target_link_libraries(listener ${catkin_LIBRARIES})
+		add_dependencies(listener beginner_tutorials_generate_messages_cpp)	
+	回到 catkin_ws
+	catkin_make
+		生成两个可执行文件, talker 和 listener, 默认存储到devel space目录
+		具体是在catkin_ws/devel/lib/beginner_tutorials/里
+		注意这里的 订阅器和发布器 都没有 使用到上面制作的 Num.msg,而是使用默认的
+	测试:
+	新一个终端
+	roscore
+	新一个终端
+	export ROS_PACKAGE_PATH=/home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws:$ROS_PACKAGE_PATH
+	cd /home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws
+	source ./devel/setup.bash
+	rosrun beginner_tutorials talker	
+	新一个终端
+	export ROS_PACKAGE_PATH=/home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws:$ROS_PACKAGE_PATH
+	cd /home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws
+	source ./devel/setup.bash
+	rosrun beginner_tutorials listener
+	新一个终端
+	通过 rqt_graph 可以查看到 topic  订阅器和发布器 的关系
+编写python格式的  订阅器和发布器
+	roscd beginner_tutorials
+	mkdir scripts
+	cd scripts
+	wget https://raw.github.com/ros/ros_tutorials/kinetic-devel/rospy_tutorials/001_talker_listener/talker.py	
+		//懒得写,直接下哉 talker 脚本
+	chmod +x talker.py	//改权限
+	tacker脚本内容:
+		#!/usr/bin/env python	
+		import rospy				//导入rospy客户端库
+		from std_msgs.msg import String		//导入std_msgs.msg 重用std_msgs/String消息类型
+		
+		def talker():
+		    pub = rospy.Publisher('chatter', String, queue_size=10)
+				//表示节点发布chatter话题，使用String字符类型
+				//实际上就是类std_msgs.msg.String
+				//queue_size表示队列的大小,如果队列消息处理不够快，就会丢弃旧的消息。
+		    rospy.init_node('talker', anonymous=True)
+				//初始化节点，开始跟ROS master通讯
+				//保持节点名称在网络中是唯一的，不能包含斜杠"/"
+		    rate = rospy.Rate(10) # 10hz
+				//创建Rate对象，与sleep()函数结合使用，控制话题消息的发布频率。
+				//10hz表示每秒发布10次
+		    while not rospy.is_shutdown():
+		        hello_str = "hello world %s" % rospy.get_time()
+		        rospy.loginfo(hello_str)
+		        pub.publish(hello_str)		
+		        rate.sleep()
+				//loop 是rospy的标准结构，检查rospy.is_shutdown()标识没返回值就会一直运行。
+				//rospy.is_shutdown()返回false就会退出（例如按下Ctrl-C）
+				//执行pub.publish(String(str))，在chatter话题发布String消息
+				//rate.sleep()通过睡眠来，保持消息发送频率
+				//rospy.loginfo(str)函数在屏幕输出调试信息，同时写入到节点日志文件和rosout节点
+				//rosout节点对于调式来说是便利的方式。可以通过rqt_console查看调式信息。
+		if __name__ == '__main__':
+		    try:
+		        talker()
+		    except rospy.ROSInterruptException:
+		        pass
+				//这个会捕获rospy.ROSInterruptException异常，
+				//当按下Ctrl-C或节点关闭的话，即使在rospy.sleep()和rospy.Rate.sleep()函数里都会抛出异常
+	wget https://raw.github.com/ros/ros_tutorials/kinetic-devel/rospy_tutorials/001_talker_listener/listener.py
+		//直接下哉 listener 脚本	
+	chmod +x listener.py
+	listener脚本内容:
+		#!/usr/bin/env python	
+		import rospy
+		from std_msgs.msg import String
+		
+		def callback(data):
+		    rospy.loginfo(rospy.get_caller_id() + 'I heard %s', data.data)
+		
+		def listener():
+
+		    rospy.init_node('listener', anonymous=True)
+			//初始化节点
+			//ROS要求每个节点要有唯一名称，如果相同的名称，就会中止之前同名的节点。
+			//调用rospy.init_node() ，增加anonymous=True关键词参数。
+			//anonymous=True标识就会告诉rospy，要生成一个唯一的节点名称，因此你可以有多个listener.py同时运行	
+		    rospy.Subscriber('chatter', String, callback)
+			//节点订阅话题chatter，消息类型是 std_msgs.msgs.String
+		    rospy.spin()
+			//rospy.spin()简单保持你的节点一直运行，直到程序关闭
+			//不像roscpp，rospy.spin()不影响到订阅的回调函数，因为他们有自己的独立线程。		
+		if __name__ == '__main__':
+		    listener()
+	编译
+	暂时不需要修改 CMakeLists.txt
+	回到 catkin_ws
+	catkin_make	
+	测试:
+	新一个终端
+	roscore
+	新一个终端
+	export ROS_PACKAGE_PATH=/home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws:$ROS_PACKAGE_PATH
+	cd /home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws
+	source ./devel/setup.bash
+	rosrun beginner_tutorials talker.py	
+	新一个终端
+	export ROS_PACKAGE_PATH=/home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws:$ROS_PACKAGE_PATH
+	cd /home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws
+	source ./devel/setup.bash
+	rosrun beginner_tutorials listener.py
+	新一个终端
+	通过 rqt_graph 可以查看到 topic  订阅器和发布器 的关系
+	由于 使用py时, 添加了anonymous=True标识, 所以talker listener 分别是独立分配的标示
+	而不是 C++ 例子那 简单的 /talker /listener 标识
+编写简单 服务 和 客户端 (C++)
+	使用上述建立的 AddTwoInts.srv 文件
+	创建server节点
+	在 beginner_tutorials/src 添加 add_two_ints_server.cpp 	
+	内容:
+		#include "ros/ros.h"
+		#include "beginner_tutorials/AddTwoInts.h"	
+			//从 AddTwoInts.srv 文件 编译出来的 AddTwoInts.h
+	
+		bool add(beginner_tutorials::AddTwoInts::Request  &req,
+		         beginner_tutorials::AddTwoInts::Response &res)
+		{
+		  res.sum = req.a + req.b;
+		  ROS_INFO("request: x=%ld, y=%ld", (long int)req.a, (long int)req.b);
+		  ROS_INFO("sending back response: [%ld]", (long int)res.sum);
+		  return true;
+		}
+		
+		int main(int argc, char **argv)
+		{
+		  ros::init(argc, argv, "add_two_ints_server");
+		  ros::NodeHandle n;
+		
+		  ros::ServiceServer service = n.advertiseService("add_two_ints", add);
+		  ROS_INFO("Ready to add two ints.");
+		  ros::spin();
+	
+		  return 0;
+		}
+	编写Client节点
+	在 beginner_tutorials/src 添加 add_two_ints_client.cpp 	
+	内容:
+		#include "ros/ros.h"
+		#include "beginner_tutorials/AddTwoInts.h"
+		#include <cstdlib>
+		
+		int main(int argc, char **argv)
+		{
+		  ros::init(argc, argv, "add_two_ints_client");
+		  if (argc != 3)
+		  {
+		    ROS_INFO("usage: add_two_ints_client X Y");
+		    return 1;
+		  }
+		
+		  ros::NodeHandle n;
+		  ros::ServiceClient client = n.serviceClient<beginner_tutorials::AddTwoInts>("add_two_ints");
+		  beginner_tutorials::AddTwoInts srv;
+		  srv.request.a = atoll(argv[1]);
+		  srv.request.b = atoll(argv[2]);
+		  if (client.call(srv))
+			//如果service调用成功，call()函数将返回true，srv.response里面的值将是合法的值。
+			//如果调用失败，call()函数将返回false，srv.response里面的值将是非法的
+		  {
+		    ROS_INFO("Sum: %ld", (long int)srv.response.sum);
+		  }
+		  else
+		  {
+		    ROS_ERROR("Failed to call service add_two_ints");
+		    return 1;
+		  }
+		
+		  return 0;
+		}
+	编译:
+	beginner_tutorials 的 CMakeLists.txt文件:
+		add_executable(add_two_ints_server src/add_two_ints_server.cpp)
+		target_link_libraries(add_two_ints_server ${catkin_LIBRARIES})
+		add_dependencies(add_two_ints_server beginner_tutorials_gencpp)
+		
+		add_executable(add_two_ints_client src/add_two_ints_client.cpp)
+		target_link_libraries(add_two_ints_client ${catkin_LIBRARIES})
+		add_dependencies(add_two_ints_client beginner_tutorials_gencpp)		
+	回到 catkin_ws
+	catkin_make
+		//生成两个可执行程序"add_two_ints_server"和"add_two_ints_client"，
+		//这两个可执行程序默认被放在你的devel space下的包目录下，默认为~/catkin_ws/devel/lib/share/。
+	新一个终端
+	roscore
+	新一个终端 打开服务
+	export ROS_PACKAGE_PATH=/home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws:$ROS_PACKAGE_PATH
+	cd /home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws
+	source ./devel/setup.bash
+	rosrun beginner_tutorials add_two_ints_server
+	新一个终端 申请服务
+	export ROS_PACKAGE_PATH=/home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws:$ROS_PACKAGE_PATH
+	cd /home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws
+	source ./devel/setup.bash
+	rosrun beginner_tutorials add_two_ints_client  60 30
+	通过 rqt_graph 观察
+	由于请求服务的行为 很快结束了,所以 toppic 用后就关闭,所以没有看到 topic
+编写简单 服务 和 客户端 (python)
+	使用上述建立的 AddTwoInts.srv 文件
+	创建server节点
+	在beginner_tutorials包创建scripts/add_two_ints_server.py文件
+	内容:
+		#!/usr/bin/env python
+
+		from beginner_tutorials.srv import *
+		import rospy
+		
+		def handle_add_two_ints(req):
+		    print "Returning [%s + %s = %s]"%(req.a, req.b, (req.a + req.b))
+		    return AddTwoIntsResponse(req.a + req.b)
+		
+		def add_two_ints_server():
+		    rospy.init_node('add_two_ints_server')
+		    s = rospy.Service('add_two_ints', AddTwoInts, handle_add_two_ints)
+		    print "Ready to add two ints."
+		    rospy.spin()
+		
+		if __name__ == "__main__":
+		    add_two_ints_server()
+	chmod +x scripts/add_two_ints_server.py		//改权限	
+	编写Client节点
+	在beginner_tutorials包创建scripts/add_two_ints_client.py
+	内容
+		#!/usr/bin/env python
+
+		import sys
+		import rospy
+		from beginner_tutorials.srv import *
+		
+		def add_two_ints_client(x, y):
+		    rospy.wait_for_service('add_two_ints')
+		    try:
+		        add_two_ints = rospy.ServiceProxy('add_two_ints', AddTwoInts)
+		        resp1 = add_two_ints(x, y)
+		        return resp1.sum
+		    except rospy.ServiceException, e:
+		        print "Service call failed: %s"%e
+		
+		def usage():
+		    return "%s [x y]"%sys.argv[0]
+		
+		if __name__ == "__main__":
+		    if len(sys.argv) == 3:
+		        x = int(sys.argv[1])
+		        y = int(sys.argv[2])
+		    else:
+		        print usage()
+		        sys.exit(1)
+		    print "Requesting %s+%s"%(x, y)
+		    print "%s + %s = %s"%(x, y, add_two_ints_client(x, y))
+	编译测试
+	回到 catkin_ws
+	catkin_make
+		//生成两个可执行程序"add_two_ints_server"和"add_two_ints_client"，
+		//这两个可执行程序默认被放在你的devel space下的包目录下，默认为~/catkin_ws/devel/lib/share/。
+	新一个终端
+	roscore
+	新一个终端 打开服务
+	export ROS_PACKAGE_PATH=/home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws:$ROS_PACKAGE_PATH
+	cd /home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws
+	source ./devel/setup.bash
+	rosrun beginner_tutorials add_two_ints_server.py
+	新一个终端 申请服务
+	export ROS_PACKAGE_PATH=/home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws:$ROS_PACKAGE_PATH
+	cd /home/infortech-ubuntu-1404/1tb_disk/other/ROS/catkin_ws
+	source ./devel/setup.bash
+	rosrun beginner_tutorials add_two_ints_client.py  60 30
+	通过 rqt_graph 观察
+	由于请求服务的行为 很快结束了,所以 toppic 用后就关闭,所以没有看到 topic
+录制和回访 topic 内容:
+	打开 乌龟窗口例子 ,三个终端分别执行:
+	roscore		//启动 master
+	rosrun turtlesim turtlesim_node 
+	rosrun turtlesim turtle_teleop_key
+	新终端列出存在的的 话题topic
+	rostopic list -v
+		可以看到很多 topic 但很多都是ros系统本身的
+		然而在 rqt_graph 上我们就只看到 /turtle1/cmd_vel
+	录制
+	cd ~/1tb_disk/other/ROS/catkin_ws
+	mkdir bagfiles
+	cd bagfiles/
+	rosbag record -a	//-a 表示录制所有topic上的内容
+		[ INFO] [1528423704.079876539]: Recording to 2018-06-08-10-08-24.bag.
+		[ INFO] [1528423704.080102511]: Subscribing to /turtle1/color_sensor
+		[ INFO] [1528423704.082482935]: Subscribing to /turtle1/cmd_vel		//控制乌龟动作的topic
+		[ INFO] [1528423704.084757144]: Subscribing to /rosout
+		[ INFO] [1528423704.087093686]: Subscribing to /rosout_agg
+		[ INFO] [1528423704.089288376]: Subscribing to /turtle1/pose
+	操作乌龟一段时间后 ctrl+c 推出录制
+	查看录制信息
+	rosbag info 2018-06-08-10-08-24.bag 	//查看录制文件 2018-06-08-10-08-24.bag
+		path:        2018-06-08-10-08-24.bag
+		version:     2.0
+		duration:    2:38s (158s)
+		start:       Jun 08 2018 10:08:24.09 (1528423704.09)
+		end:         Jun 08 2018 10:11:02.70 (1528423862.70)
+		size:        1.3 MB
+		messages:    19876
+		compression: none [2/2 chunks]
+		types:       geometry_msgs/Twist [9f195f881246fdfa2798d1d3eebca84a]
+		             rosgraph_msgs/Log   [acffd30cd6b6de30f120938c17c593fb]
+		             turtlesim/Color     [353891e354491c51aabe32df673fb446]
+		             turtlesim/Pose      [863b248d5016ca62ea2e895ae5265cf9]
+		topics:      /rosout                    4 msgs    : rosgraph_msgs/Log   (2 connections)
+		             /turtle1/cmd_vel          78 msgs    : geometry_msgs/Twist
+		             /turtle1/color_sensor   9897 msgs    : turtlesim/Color    
+		             /turtle1/pose           9897 msgs    : turtlesim/Pose
+	rosbag play 2018-06-08-10-08-24.bag	//回播
+		注意 录制是以秒为单位录制视频的
+		回播的时候以原本速度执行, 指定的同样时刻向所有指定 topic, 发布录制了的 信息message
+		这样 我们会看到 乌龟又执行了一遍我们执行过的操作
+		rqt_graph 会看到一个新节点 play 同样接到 /turtle1/cmd_vel 给 乌龟发布操作命令
+	rosbag play -r 4 <your bagfile> 	//4倍速回播
+		意味着 发布消息的间隔是原来的 1/4, 指令执行时间是原来1/4,
+		然而 指令执行的速度加快了!!
+		这样乌龟运动的轨迹就变了, 与原来的轨迹完全不一样
+		也就是说 录制的只是 话题中消息发布的时机和间隔
+		回访只是 重复给话题发布消息的过程
+		斌不是真的录制整个运动过程		
+	rosbag record -O subset /turtle1/cmd_vel /turtle1/pose
+		录制指定的 topic,生成指定的录制文件 subset.bag
+系统错误分析工具
+	如果发现被一个编译或者通信之类的问题困扰，可以尝试运行roswtf检查一下。
+	roscd		//直接跳到 ros根目录: /opt/ros/indigo
+	roswtf		//系统问题检查工具
+	详细百度
+进阶  URDF RViz actionlib navigation MoveIt TF程序包 :https://www.ncnynl.com/archives/201608/518.html
+创建 程序包 ROS package(catkin) 第二种方式,不同于beginner_tutorials
+	回到 catkin_ws
+	mkdir -p src/foobar
+	cd src/foobar
+	手动建立 foobar/package.xml
+	内容:
+		<package>
+		  <name>foobar</name>
+		  <version>1.2.4</version>
+		  <description>
+		  This package provides foo capability.
+		  </description>
+		  <maintainer email="foobar@foo.bar.willowgarage.com">PR-foobar</maintainer>
+		  <license>BSD</license>
+		
+		  <buildtool_depend>catkin</buildtool_depend>
+		
+		  <build_depend>roscpp</build_depend>
+		  <build_depend>std_msgs</build_depend>
+		
+		  <run_depend>roscpp</run_depend>
+		  <run_depend>std_msgs</run_depend>
+		</package>	
+	rospack find foobar
+		已经包含配置文件(package.xml)，ROS能够找到它:
+	手动建立foobar/CMakeLists.txt
+	内容:
+		cmake_minimum_required(VERSION 2.8.3)
+		project(foobar)
+		find_package(catkin REQUIRED roscpp std_msgs)
+		catkin_package()
+	这样子 一个程序包的创建就算是 创建好了
+管理系统依赖项
+	ROS packages有时会需要操作系统提供一些外部函数库，这些函数库就是所谓的“系统依赖项”。
+	在一些情况下，这些依赖项并没有被系统默认安装，因此，ROS提供了一个工具rosdep来下载并安装所需系统依赖项。
+	ROS packages必须在配置文件中声明他们需要哪些系统依赖项。
+	例子:
+	roscd turtlesim		来到乌龟项目程序包
+	rosdep install turtlesim	安装乌龟项目 需要用到的系统依赖项
+		因为我装ros是全面安装的,所以已经安装了,所以出现
+		All required rosdeps installed successfully
+Roslaunch 大型项目中使用技巧
+	这个没有实际demo操作真不好弄！！
+	ROS采用rosrun命令可以启动一个节点，如果需要同时启动节点管理器（master）和多个节点，就需要采用launch文件来配置
+	
+
+SLAM
+	入门书籍，简单实现及代码《SLAM for Dummies》《STATE ESTIMATION FOR ROBOTICS》
+	作者Joan Sola关于Graph-SLAM的教程，包含位姿变换、传感器模型、图优化以及SLAM中的稀疏性求解《Course on SLAM》	
+	
+	国内SLAMTEC-思岚科技公司将为大家分享SLAM算法入门必备资料
+
+	SLAM涵盖的东西比较多，分为前端和后端两大块。
+	前端主要是研究相邻帧的拼接，又叫配准。根据传感器不一样，有激光点云、图像、RGB-D拼接几种，
+	其中图像配准中又分基于稀疏特征(Sparse)的和稠密(Dense)的两种。
+	后端主要是研究地图拼接(前端)中累积误差的校正，主流就两种，
+	基于概率学理论的贝叶斯滤波器（EKF，PF）以及基于优化的方法。
+	EKF已经用得很少了，PF也就在2D地SLAM（Gmapping）中用得多，大多还是用优化的方法在做
+	
+	尝试玩一些现有的SLAM包，推荐两个地方，一个是 OpenSLAM：https://openslam.org/，里面有各种SLAM包，主流的SLAM算法，在这一般都有源码。
+	另外一个就是ROS了，里面有很多现成的SLAM包，像Gmapping，RGB-D SLAM，上手非常快，甚至你没有任何设备，
+	你也可以利用ROS中的仿真环境（如Gazebo）跑。建议先试试Gmapping，百度上有很多中文教程，
+
+	Thrun的《probabilistic robotics》，了解下概率学是如何解决机器人中的问题的，
+	关键学习贝叶斯滤波，也是就是贝叶斯公式在各个问题(定位，SLAM)中的应用。
+	另外，优化的话，建议先把最小二乘优化中给弄透彻，数学推导要会，因为很多问题，最后都是归结到最小二乘优化，
+	然后就是梯度下降、求Jacobian之类的。
+	
+	Kitti图库，可以做simulation：http://www.cvlibs.net/datasets/kitti/
+
+	苏黎世理工学习练习excise3看完后可以使用Javier Civera 的程序进行试手，注意对calibration的调整
+	http://webdiis.unizar.es/~jcivera/code/1p-ransac-ekf-monoslam.html
+	对于Javier Civera的1p RANSAC-monoSLAM有一定了解了，可以试试用SURF去实现
+	南理工论文可以参考 http://cdmd.cnki.com.cn/Article/CDMD-10288-1012319519.htm
+
+	RGB-D SLAM Dataset and Benchmark：http://cvpr.in.tum.de/data/datasets/rgbd-dataset
+	慕尼黑工业大学，还有其他的数据库，如单目视觉里程计数据库，详见http://vision.in.tum.de/data/datasets
+
+	Monocular SLAM：http://vision.ia.ac.cn/Students/gzp/monocularslam.html
+	The research in monocular SLAM technology is mainly based on the EKF(Extended Kalman Filter) SLAM approaches.
+
+	MRPT：http://www.mrpt.org/ the mobile robot programming toolkit非常好的东西
+
+	PTAM：http://www.robots.ox.ac.uk/~gk/PTAM/
+	libCVD：http://www.edwardrosten.com/index.html
+	编译PTAM：http://www.fx114.net/qa-207-77156.aspx
+	windows下编译PTAM：http://blog.csdn.net/cgf_909/article/details/24457771
+
+	ORB_SLAM：http://webdiis.unizar.es/~raulmur/orbslam/
+
+	LSD_SLAM：http://www.cnblogs.com/hitcm/category/763753.html
+
+	主流开源SLAM方案
+	摄像头方案
+		稀疏法(特征点):
+			ORB-SLAM(单目，双目，RGBD)[1](ORB-SLAM: a Versatile and Accurate Monocular SLAM System中文翻译)[2]
+			PTAM(单目)[3]
+			MonoSLAM(单目)[4]
+		半稠密法:
+			LSD-SLAM(单目，双目，RGBD)[5]
+			SVO(单目, 仅VO)[6]
+		稠密法:
+			DTAM(RGBD): Paper: [7] Open source code:[8]
+			Elastic Fusion(RGBD): Open source code:[9]
+			Kintinous(RGBD):Open source code: [10]
+			DVO: Open source code: [11]
+			RGBD-SLAM-V2: Open source code: [12]
+		其他
+			ScaViSLAM: Open source code [13]
+	激光传感器方案：
+		Hector SLAM[14]
+		Gmapping [15]
+	视觉(Visual)与IMU融合(VI)
+		Release of OKVIS: Open Keyframe-based Visual Inertial SLAM[16]
+	工具
+		g2o:[17]
+		ceres: [18]
+算法论文更新 https://arxiv.org/
+
+
+slam ros 模拟 https://blog.csdn.net/sinat_31425585/article/details/52856593
+
+https://www.cnblogs.com/TooyLee/p/7736732.html
+https://blog.csdn.net/qq_29797957/article/details/78089420
+https://www.ncnynl.com/archives/201707/1787.html
+https://blog.csdn.net/sinat_31425585/article/details/52856593
+
+
+装ros
+sudo apt-get install ros-kinetic-desktop-full  
+sudo rosdep init  
+rosdep update 
+sudo apt-get install python-rosinstall  
+sudo apt-get install python-rosinstall-generator python-wstool build-essential 
+echo "source /opt/ros/kinetic/setup.bash" >> ~/.bashrc    
+source ~/.bashrc  
+	使环境变量设置立即生效
+export | grep ROS
+
+装依赖
+sudo apt-get install ros-kinetic-turtlebot-bringup \
+ros-kinetic-turtlebot-create ros-kinetic-openni-* \
+ros-kinetic-openni2-* ros-kinetic-freenect-* ros-kinetic-usb-cam \
+ros-kinetic-laser-* \
+ros-kinetic-audio-common \
+ros-kinetic-slam-gmapping \
+ros-kinetic-joystick-drivers python-rosinstall \
+ros-kinetic-orocos-kdl ros-kinetic-python-orocos-kdl \
+python-setuptools ros-kinetic-dynamixel-motor \
+libopencv-dev python-opencv ros-kinetic-vision-opencv \
+ros-kinetic-depthimage-to-laserscan \
+ros-kinetic-turtlebot-teleop ros-kinetic-move-base \
+ros-kinetic-map-server ros-kinetic-fake-localization \
+ros-kinetic-amcl git subversion mercurial
+
+<br>其中，ros-kinetic-hokuyo-node（北阳激光雷达）、gstreamer0.10-pocketsphinx和ros-kinetic-pocketsphinx（语音识别库）<br>
+和ros-kinetic-arbotix-*（模拟器）在ros kinetic版本中没有，如果用到需要源码编译
+
+sudo aptitude install ros-kinetic-turtlebot-bringup \
+ros-kinetic-turtlebot-create-desktop ros-kinetic-openni-* \
+ros-kinetic-openni2-* ros-kinetic-freenect-* ros-kinetic-usb-cam \
+ros-kinetic-laser-* \
+ros-kinetic-audio-common \
+ros-kinetic-slam-gmapping \
+ros-kinetic-joystick-drivers python-rosinstall \
+ros-kinetic-orocos-kdl ros-kinetic-python-orocos-kdl \
+python-setuptools ros-kinetic-dynamixel-motor-* \
+libopencv-dev python-opencv ros-kinetic-vision-opencv \
+ros-kinetic-depthimage-to-laserscan \
+ros-kinetic-turtlebot-teleop ros-kinetic-move-base \
+ros-kinetic-map-server ros-kinetic-fake-localization \
+ros-kinetic-amcl git subversion mercurial
+
+
+sudo apt-get remove ros-kinetic-turtlebot-bringup \
+ ros-kinetic-openni-* \
+ros-kinetic-openni2-* ros-kinetic-freenect-* ros-kinetic-usb-cam \
+ros-kinetic-laser-* \
+ros-kinetic-audio-common \
+ros-kinetic-slam-gmapping \
+ros-kinetic-joystick-drivers python-rosinstall \
+ros-kinetic-orocos-kdl ros-kinetic-python-orocos-kdl \
+python-setuptools ros-kinetic-dynamixel-motor-* \
+libopencv-dev python-opencv ros-kinetic-vision-opencv \
+ros-kinetic-depthimage-to-laserscan \
+ros-kinetic-map-server ros-kinetic-fake-localization \
+ros-kinetic-amcl git subversion mercurial
+
+
+
+
+
+
+
+
+
+装 rbx1 模拟机器人
+cd ~~/catkin_ws/src
+git clone https://github.com/pirobot/rbx1.git
+cd ..
+catkin_make
+
+装 navigation 不推荐(多错误,未解决)
+sudo apt-get install libmrpt-dev  
+sudo apt-get install libbullet-dev
+cd ~~/catkin_ws/src
+git clone https://github.com/ros-planning/navigation.git
+cd ..
+catkin_make
+
+sudo apt-get install ros-kinetic-navigation
+sudo apt-get install ros-kinetic-gmapping
+sudo apt-get install ros-kinetic-hector-mapping
+
+装ARBOTIX模拟器
+cd ~~/catkin_ws/src
+git clone  https://github.com/vanadiumlabs/arbotix_ros
+cd ..
+catkin_make
+
+
+终端1 启动master
+	roscore	
+终端2 启动rbx1
+	source ros/catkin_ws/devel/setup.bash
+	roslaunch rbx1_bringup fake_turtlebot.launch 
+终端3 启动可视化工具
+	source ros/catkin_ws/devel/setup.bash
+	rosrun rviz rviz -d `rospack find rbx1_nav`/sim.rviz 
+终端4 规划运动
+	source ros/catkin_ws/devel/setup.bash
+	rostopic pub -r 10 /cmd_vel geometry_msgs/Twist '{linear: {x: 0.2, y: 0, z: 0}, angular: {x: 0, y: 0, z: 0.5}}'
+
+
+sudo aptitude install libsdl-image1.2-dev  
+sudo aptitude install ros-indigo-navigation  
+sudo aptitude install ros-indigo-map-server  
+
+slam模拟
+终端1 启动master
+	roscore	
+终端2 启动rbx1
+	source ros/catkin_ws/devel/setup.bash
+	roslaunch rbx1_bringup fake_turtlebot.launch 		
+终端3 蒙特卡洛粒子滤波算法节点，同时加载地图	
+	source ros/catkin_ws/devel/setup.bash
+	roslaunch rbx1_nav fake_amcl.launch map:=test_map.yaml  
+	启动 fake_amcl.launch 发现 move_base 出错未解决!!
+	ERROR: cannot launch node of type [move_base/move_base]: can't locate node [move_base] in package [move_base]
+	https://blog.csdn.net/Richard_2018/article/details/80390369
+I also got an ERROR saying there is no move_base/move_base to launch. I found move_base (both the package folder AND executable) in /opt/ros/kinetic/lib/ There were also move_base folders in catkin_ws/devel/lib/ and catkin_ws/devel/share/ However, these catkin_ws move_base folders were empty or incomplete due to a bad build or an incomplete build that I had attempted initially. The problem was caused by not cleaning up a bad build in my catkin_ws directories. I deleted move_base folders from catkin_ws/devel/ lib and share, along with many other navigation related directories that should not have been there. I then could launch move_base.launch
+	然后安装今天的主角：
+		sudo apt-get install aptitude
+	然后用aptitude替代apt-get来安装软件。
+		sudo aptitude install build-essential
+
+终端4 启动可视化工具
+	source ros/catkin_ws/devel/setup.bash
+	rosrun rviz rviz -d `rospack find rbx1_nav`/sim.rviz 
+	看不到maping: map topic下拉选择
+
+gmapping
+https://blog.csdn.net/qq_24747993/article/details/53759308	
+https://blog.csdn.net/qq_24747993/article/details/53759308
+
+最后不知道是否成功运行了slam,运行结果比较不满意,但是也暂告一段落
+
+
+
+
+
+
+
+
+
+20180618
+moveit 详细学习!!
+https://blog.csdn.net/crazyquhezheng/article/details/42840955
+
+https://blog.csdn.net/gpeng832/article/details/72853709?locationNum=2&fps=1
+
+https://blog.csdn.net/akunainiannian/article/details/44985423
+
+https://blog.csdn.net/BBZZ2/article/details/51375623 重点
+http://www.cnblogs.com/gaoxiang12/default.html?page=3 RGB SLAM 的重要参考
+博客资料
+    古月居的一篇博客(2013-04-16 21:56)： http://blog.csdn.net/hcx25909/article/details/8811313#t1
+
+    古月居的CSDN博客系列(2012.7-2013.9)： http://blog.csdn.net/hcx25909/article/category/1191901/1
+
+    小菜鸟上校的CSDN博客（2013.10-11）(20篇)： http://blog.csdn.net/xiaocainiaoshangxiao/article/category/1710543/2 
+
+    周学伟的博客园(2016.3-2016.5) :http://www.cnblogs.com/zxouxuewei/tag/%E6%9C%BA%E5%99%A8%E4%BA%BA%E7%B3%BB%E7%BB%9FROS%E7%9A%84%E5%AD%A6%E4%B9%A0%E4%B9%8B%E8%B7%AF/
+
+    永顿007的新浪博客(2011.01-09): http://blog.sina.com.cn/s/articlelist_1712413141_7_1.html
+    小庄的博客(2014.10-2015.11): http://blog.csdn.net/junshen1314/article/category/2614195
 
 
 
@@ -2446,28 +4009,396 @@ end function
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+201806026
+urdf 实践 :http://www.guyuehome.com/column/ros-explore/page/3
+小车实践
+环境变量重定位到 catkin_ws 
+	source ~/ros/catkin_ws/devel/setup.bash
+在 catkin_ws 建立一个新的程序包 smartcar
+	cd ~/ros/catkin_ws/src 
+	catkin_create_pkg smartcar std_msgs rospy roscpp urdf
+在 ~/ros/catkin_ws/src/smartcar下,创建 urdf,和launch文件夹,并分别添加以下文件:
+/***** smartcar.urdf  ****/
+<?xml version="1.0"?>
+<robot name="smartcar">
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="0.25 .16 .05"/>
+	</geometry>
+	<origin rpy="0 0 1.57075" xyz="0 0 0"/>
+    <material name="blue">
+		<color rgba="0 0 .8 1"/>
+	</material>
+    </visual>
+ </link>
  
+ <link name="right_front_wheel">
+    <visual>
+      <geometry>
+        <cylinder length=".02" radius="0.025"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+ 
+  <joint name="right_front_wheel_joint" type="continuous">
+    <axis xyz="0 0 1"/>
+    <parent link="base_link"/>
+    <child link="right_front_wheel"/>
+    <origin rpy="0 1.57075 0" xyz="0.08 0.1 -0.03"/>
+    <limit effort="100" velocity="100"/>
+    <joint_properties damping="0.0" friction="0.0"/>
+  </joint>
+ 
+  <link name="right_back_wheel">
+    <visual>
+      <geometry>
+        <cylinder length=".02" radius="0.025"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+ 
+  <joint name="right_back_wheel_joint" type="continuous">
+    <axis xyz="0 0 1"/>
+    <parent link="base_link"/>
+    <child link="right_back_wheel"/>
+    <origin rpy="0 1.57075 0" xyz="0.08 -0.1 -0.03"/>
+    <limit effort="100" velocity="100"/>
+    <joint_properties damping="0.0" friction="0.0"/>
+ </joint>
+ 
+ <link name="left_front_wheel">
+    <visual>
+      <geometry>
+        <cylinder length=".02" radius="0.025"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+ 
+  <joint name="left_front_wheel_joint" type="continuous">
+    <axis xyz="0 0 1"/>
+    <parent link="base_link"/>
+    <child link="left_front_wheel"/>
+    <origin rpy="0 1.57075 0" xyz="-0.08 0.1 -0.03"/>
+    <limit effort="100" velocity="100"/>
+    <joint_properties damping="0.0" friction="0.0"/>
+  </joint>
+ 
+  <link name="left_back_wheel">
+    <visual>
+      <geometry>
+        <cylinder length=".02" radius="0.025"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+ 
+  <joint name="left_back_wheel_joint" type="continuous">
+    <axis xyz="0 0 1"/>
+    <parent link="base_link"/>
+    <child link="left_back_wheel"/>
+    <origin rpy="0 1.57075 0" xyz="-0.08 -0.1 -0.03"/>
+    <limit effort="100" velocity="100"/>
+    <joint_properties damping="0.0" friction="0.0"/>
+  </joint>
+ 
+  <link name="head">
+    <visual>
+      <geometry>
+        <box size=".02 .03 .03"/>
+      </geometry>
+	  <material name="white">
+		  <color rgba="1 1 1 1"/>
+	  </material>
+    </visual>
+  </link>
+ 
+  <joint name="tobox" type="fixed">
+    <parent link="base_link"/>
+    <child link="head"/>
+    <origin xyz="0 0.08 0.025"/>
+  </joint>
+</robot> 
+
+/******* display.launch *******/
+    <launch>
+    	<arg name="model" />
+    	<arg name="gui" default="False" />
+    	<param name="robot_description" textfile="$(find smartcar)/urdf/smartcar.urdf)" />
+    	<param name="use_gui" value="$(arg gui)"/>
+    	<node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+    	<node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+    	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find urdf_tutorial)/urdf.rviz" required="true" />
+    </launch>
+检查:
+	rospack find smartcar //可以找到
+	cd ~/ros/catkin_ws && catkin_make  //编译一次
+	roscd smartcar	//这样就可以找到并跳到 samrtcar 软件包的路径
+运行一下:
+	roscd samrtcar/
+	roslaunch smartcar display.launch model:=urdf/smartcar.urdf gui:=true
+	手动 ADD 选择 robotmodel 便可以看到小车
+	手动 ADD 选择 tf 便可以看到 link 的坐标系
+问题总结:
+	发现 rviz 不能正常显示小车什么的, Fixed Frame [map] does not exist
+		原因是 Global Options->Fixed Frame: map ,这时历史配置问题,
+		smartcar.urdf里并没有马屁,把 map 换回 base_link 即可
+	No transform from [tyer_back_left] to [base_link] 这是urdf 文件的格式问题
+		urdf只支持ascii编码，不支持Unicode
+	No tf data.  Actual error: Fixed Frame [base_link] does not exist 尽量同一个终端执行
+
+
+
+
+
+
+
+
+
+
+20180626
+参考:
+	http://gazebosim.org/ 
+	https://www.cnblogs.com/damens/p/6459581.html
+gazebo 安装 使用 :
+安装: sudo apt-get install ros-kinetic-simulators
+更新环境变量: source /opt/ros/kinetic/setup.bash
+测试gazebo程序: roslaunch gazebo_ros empty_world.launch
+	rosrun gazebo_ros spawn_model -file /home/william/ros/catkin_ws/src/smartcar/urdf/test.urdf -urdf -z 1 -model my_object1
+/**** test.urdf ***/
+<robot name="simple_box">
+  <link name="my_box">
+    <inertial>
+      <origin xyz="2 0 0" />
+      <mass value="1.0" />
+      <inertia  ixx="1.0" ixy="0.0"  ixz="0.0"  iyy="100.0"  iyz="0.0"  izz="1.0" />
+    </inertial>
+    <visual>
+      <origin xyz="2 0 1"/>
+      <geometry>
+        <box size="1 1 2" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="2 0 1"/>
+      <geometry>
+        <box size="1 1 2" />
+      </geometry>
+    </collision>
+  </link>
+  <gazebo reference="my_box">
+    <material>Gazebo/Blue</material>
+  </gazebo>
+</robot>
+
+
+
+
+
+
+
+
+
+
+针对工业机器人的ros模块 ROS Industrial (ROS-I)
+http://www.guyuehome.com/484
+完整安装ros后还有补充安装
+	sudo apt-get install ros-kinetic-industrial-core
+安装UR机器人的ROS功能包集
+	sudo apt-get install ros-kinetic-universal-robot
+运行:
+	终端1 看到机器人
+	roslaunch ur_gazebo ur10.launch	//看到机器人
+	终端2 我们让机械臂动起来,需要运行MoveIt运动规划的节点
+	roslaunch ur10_moveit_config ur10_moveit_planning_execution.launch sim:=true
+	终端3 运行rviz
+	roslaunch ur10_moveit_config moveit_rviz.launch config:=true
+	我们可以看到rivz中的机器人模型和gazebo中的机器人模型应该是一样的姿态。
+	在rviz中，我们可以用鼠标拖动机器人的终端，然后点击planning标签页中的plan nad execute
+	可以让机器人规划路径并且到达目标位置了，gazebo中的模型也会跟随变化。
+	但是显然并不完整!!
+
+
+
+TurtleBot  gazebo仿真实验: http://www.guyuehome.com/1809
+TurtleBot2
+安装所有turtlebot功能包
+	sudo apt-get install ros-kinetic-turtlebot-*
+启动gazebo仿真环境，并且加载Turtlebot机器人
+	这里需要使用环境变量TURTLEBOT_GAZEBO_WORLD_FILE为仿真环境指定地图，否则会显示找不到地图的错误
+	export TURTLEBOT_GAZEBO_WORLD_FILE="/opt/ros/kinetic/share/turtlebot_gazebo/worlds/playground.world"
+	roslaunch turtlebot_gazebo turtlebot_world.launch
+	然后看到gazebo 一个被打开了的场景
+新终端打开rviz:
+	rosrun rviz rviz	//不知道命令对不对
+然后新终端打开键盘操纵:
+	roslaunch turtlebot_teleop keyboard_teleop.launch
+	然后键盘控制就能操作 机器人了
+	但是 riviz 没有反应,只有gazebo有,未知如何解决
+
+TurtleBot3
+安装所有turtlebot功能包
+	sudo apt-get install ros-kinetic-turtlebot3-*
+启动gazebo仿真环境，并且加载Turtlebot机器人
+	export TURTLEBOT3_MODEL=burger
+	roslaunch turtlebot3_gazebo turtlebot3_world.launch
+	然后看到gazebo 一个被打开了的场景
+新终端打开slam 配置下的rviz:
+	export TURTLEBOT3_MODEL=burger
+	roslaunch turtlebot3_slam turtlebot3_slam.launch
+	可以看到slam模拟场景
+然后新终端打开键盘操纵:
+	roslaunch turtlebot3_teleop turtlebot3_teleop_key.launch
+	然后键盘控制就能操作 机器人了
+	但是 riviz,gazebo 都有反应
+
+TRAC-IK和KDL类似，也是一种基于数值解的运动学插件:
+sudo apt-get install ros-kinetic-trac-ik-kinematics-plugin
+
+IKFAST 一种基于解析算法的运动学插件
+依赖:
+sudo apt-get install libassimp-dev libavcodec-dev libavformat-dev libavformat-dev libboost-all-dev
+sudo apt-get install libboost-date-time-dev libbullet-dev libfaac-dev libglew-dev libgsm1-dev liblapack-dev liblog4cxx-dev 
+sudo apt-get install libmpfr-dev libode-dev libogg-dev libpcrecpp0v5 libpcre3-dev libqhull-dev libqt4-dev 
+sudo apt-get install libsoqt-dev-common libsoqt4-dev libswscale-dev libswscale-dev libvorbis-dev libx264-dev libxml2-dev libxvidcore-dev
+sudo apt-get install cmake g++ git ipython minizip python-dev python-h5py python-numpy python-scipy qt4-dev-tools
+安装OpenSceneGraph-3.4:	ros/other
+sudo apt-get install libcairo2-dev libjasper-dev libpoppler-glib-dev libsdl2-dev libtiff5-dev libxrandr-dev
+git clone https://github.com/openscenegraph/OpenSceneGraph.git --branch OpenSceneGraph-3.4
+cd OpenSceneGraph
+mkdir build && cd build
+cmake .. -DDESIRED_QT_VERSION=4
+make -j$(nproc)
+sudo make install
+安装sympy	//不在python的虚拟环境,在直接环境安装,安装不成功:
+		//Command "python setup.py egg_info" failed with error code 1 in /tmp/pip-build-rd5mlutx/sympy/
+		//原来没有装 python2 对应的pip2
+pip install --upgrade --user sympy==0.7.1
+删除mpmath (并没有做这步)
+sudo apt remove python-mpmath
+安装IKFast功能包
+sudo apt-get install ros-kinetic-moveit-kinematics
+安装OpenRave
+sudo apt-get install ros-kinetic-openrave
+后面的是测试这个运动学插件过程: http://www.guyuehome.com/1921
+创建collada文件
+    export MYROBOT_NAME="marm"
+    rosrun xacro xacro --inorder -o "$MYROBOT_NAME".urdf "$MYROBOT_NAME".xacro    
+    rosrun collada_urdf urdf_to_collada "$MYROBOT_NAME".urdf "$MYROBOT_NAME".dae<br></font>
+创建dae文件
+    export IKFAST_PRECISION="5"
+    cp "$MYROBOT_NAME".dae "$MYROBOT_NAME".backup.dae # create a backup of your full precision dae.
+    rosrun moveit_kinematics round_collada_numbers.py "$MYROBOT_NAME".dae "$MYROBOT_NAME".dae "$IKFAST_PRECISION"
+略...
+
+
+moveit 系统地学习:
+http://docs.ros.org/kinetic/api/moveit_tutorials/html/doc/getting_started/getting_started.html
+
+
+现在用的的 kinetic 是 ros1, 后面还有个ros2 ,是一个使用dds, 不需要master的新架构
+
+
+dynamixel的伺服
+EtherCAT 通讯
+
+
+
+
+
+
+
+
+20180627
+http://www.guyuehome.com/1228
+现在用的的 kinetic 是 ros1, 后面还有个ros2 ,是一个使用dds, 不需要master的新架构,更稳定面向产品开发
+安装ROS2 第一个正式版——Ardent Apalone
+添加软件源
+	sudo apt update && sudo apt install curl
+	curl http://repo.ros2.org/repos.key | sudo apt-key add -
+	sudo sh -c 'echo "deb [arch=amd64,arm64] http://repo.ros2.org/ubuntu/main xenial main" > /etc/apt/sources.list.d/ros2-latest.list'
+安装ROS2
+	sudo apt-get update
+	sudo apt install `apt list ros-ardent-* 2> /dev/null | grep "/" | awk -F/ '{print $1}' | grep -v -e ros-ardent-ros1-bridge -e ros-ardent-turtlebot2- | tr "\n" " "`
+	以上安装命令排除了ros-ardent-ros1-bridge和ros-ardent-turtlebot2-*等功能包，这些功能包需要依赖ROS1，可以在后续单独安装
+设置环境变量
+	source /opt/ros/ardent/setup.bash
+安装python3-argcomplete >= 0.8.5	//不在python的虚拟环境,在直接环境安装,安装不成功:
+	sudo pip3 install argcomplete
+	source /opt/ros/ardent/share/ros2cli/environment/ros2-argcomplete.bash
+	这样可完成诸如ros2这样的命令行工具
+ROS2默认使用的RMW是FastRPTS，我们也可以通过以下环境变量将默认RMW修改为OpenSplice
+	RMW_IMPLEMENTATION=rmw_opensplice_cpp
+安装依赖ROS1的功能包
+	sudo apt install ros-ardent-ros1-bridge  ros-ardent-turtlebot2-*
+
+
+
+
+
+
+
+sudo apt-get install ros-kinetic-pr2-desktop
+sudo apt-get install ros-kinetic-uvc-camera ros-kinetic-image-* ros-kinetic-rqt-image-view
+
+sudo apt-get install ros-kinetic-turtlebot3 ros-kinetic-turtlebot3-msgs ros-kinetic-turtlebot3-simulations
+
+sudo apt-get install ros-kinetic-rosserial ros-kinetic-rosserial-server ros-kinetic-rosserial-arduino
+
+sudo apt-get install ros-kinetic-joy ros-kinetic-teleop-twist-joy ros-kinetic-teleop-twist-keyboard ros-kinetic-laser-proc ros-kinetic-rgbd-launch ros-kinetic-depthimage-to-laserscan ros-kinetic-rosserial-arduino ros-kinetic-rosserial-python ros-kinetic-rosserial-server ros-kinetic-rosserial-client ros-kinetic-rosserial-msgs ros-kinetic-amcl ros-kinetic-map-server ros-kinetic-move-base ros-kinetic-urdf ros-kinetic-xacro ros-kinetic-compressed-image-transport ros-kinetic-rqt-image-view ros-kinetic-gmapping ros-kinetic-navigation
+
+sudo apt-get install ros-kinetic-joy ros-kinetic-teleop-twist-joy ros-kinetic-teleop-twist-keyboard ros-kinetic-laser-proc ros-kinetic-rgbd-launch ros-kinetic-depthimage-to-laserscan ros-kinetic-rosserial-arduino ros-kinetic-rosserial-python ros-kinetic-rosserial-server ros-kinetic-rosserial-client ros-kinetic-rosserial-msgs ros-kinetic-amcl ros-kinetic-map-server ros-kinetic-move-base ros-kinetic-urdf ros-kinetic-xacro ros-kinetic-compressed-image-transport ros-kinetic-rqt-image-view ros-kinetic-gmapping ros-kinetic-navigation
+
+sudo apt-get install ros-kinetic-rosjava-build-tools
+
+sudo apt-get install ros-kinetic-ros-controllers ros-kinetic-gazebo* ros-kinetic-moveit* ros-kinetic-dynamixel-sdk ros-kinetic-dynamixel-workbench-toolbox ros-kinetic-robotis-math ros-kinetic-industrial-core
+
+
+
+sudo apt-get install ros-kinetic-joy ros-kinetic-joystick-drivers ros-kinetic-teleop-twist-joy
+$ roslaunch teleop _ twist _ joy teleop . launch -- screen
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 
 
 ??????????????????
-
+未深入 DQN
 约等于 ≈
 　　1、几何符号
 　　⊥   ∥   ∠   ⌒   ⊙   ≡   ≌    △
