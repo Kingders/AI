@@ -4259,6 +4259,7 @@ TurtleBot3
 	roslaunch turtlebot3_slam turtlebot3_slam.launch
 	可以看到slam模拟场景
 然后新终端打开键盘操纵:
+	export TURTLEBOT3_MODEL=burger
 	roslaunch turtlebot3_teleop turtlebot3_teleop_key.launch
 	然后键盘控制就能操作 机器人了
 	但是 riviz,gazebo 都有反应
@@ -4347,12 +4348,11 @@ ROS2默认使用的RMW是FastRPTS，我们也可以通过以下环境变量将�
 
 
 
-
-
+补充安装 包:
 sudo apt-get install ros-kinetic-pr2-desktop
 sudo apt-get install ros-kinetic-uvc-camera ros-kinetic-image-* ros-kinetic-rqt-image-view
 
-sudo apt-get install ros-kinetic-turtlebot3 ros-kinetic-turtlebot3-msgs ros-kinetic-turtlebot3-simulations
+#(建议另外编译安装) sudo apt-get install ros-kinetic-turtlebot3 ros-kinetic-turtlebot3-msgs ros-kinetic-turtlebot3-simulations
 
 sudo apt-get install ros-kinetic-rosserial ros-kinetic-rosserial-server ros-kinetic-rosserial-arduino
 
@@ -4364,10 +4364,7 @@ sudo apt-get install ros-kinetic-rosjava-build-tools
 
 sudo apt-get install ros-kinetic-ros-controllers ros-kinetic-gazebo* ros-kinetic-moveit* ros-kinetic-dynamixel-sdk ros-kinetic-dynamixel-workbench-toolbox ros-kinetic-robotis-math ros-kinetic-industrial-core
 
-
-
 sudo apt-get install ros-kinetic-joy ros-kinetic-joystick-drivers ros-kinetic-teleop-twist-joy
-$ roslaunch teleop _ twist _ joy teleop . launch -- screen
 
 
 
@@ -4376,6 +4373,506 @@ $ roslaunch teleop _ twist _ joy teleop . launch -- screen
 
 
 
+
+
+
+
+
+
+
+20180703
+重新实践学习 ros 的基本服务 应用框架
+	cd ~/ catkin _ ws / src
+	catkin_create_pkg ros_tutorials_service message_generation std_msgs roscpp
+修改功能包配置文件(package.xml)加入了
+	<exec_depend>message_runtime</exec_depend>
+修改构建配置文件(CMakeLists.txt)
+	## 服务声明: SrvTutorial . srv
+	add_service_files( FILES SrvTutorial.srv )
+
+	## 这是一个设置依赖消息的选项。
+	## 如果未安装 std _ msgs ,则在构建过程中会发生错误。
+	generate_messages( DEPENDENCIES std_msgs )
+
+	## 这是 catkin 功能包选项,它描述了库、 catkin 构建依赖和依赖系统的功能包。
+	catkin _ package ( LIBRARIES ros_tutorials_service )
+
+	## 设置包含目录。
+	include_directories (${catkin_INCLUDE_DIRS})
+
+	## 这是 service_server 节点的构建选项。
+	## 设置可执行文件、目标链接库和附加依赖项。
+	add_executable(service_server src/service_server.cpp)
+	add_dependencies(service_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+	target_link_libraries(service_server ${catkin_LIBRARIES})
+
+	## 这是节点的构建选项。
+	add_executable(service_client src/service_client.cpp)
+	add_dependencies(service_client ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+	target_link_libraries(service_client ${catkin_LIBRARIES})
+在 ros_tutorials_service/srv 书写服务数据规范表格 SrvTutorial.srv
+在 ros_tutorials_service/src 书写服务端 service_server 客户端 service_client
+回到 catkin_ws
+catkin_make 	
+	生成的文件位于“~/catkin_ws/build”目录和“~/catkin_ws/devel”目录。
+	目录“~/catkin_ws/build”包含catkin构建中使用的配置,
+	“~/catkin_ws/devel/lib/ros_tutorials_service”包含可执行文件,
+	“~/catkin_ws/devel/include/ros_tutorials_service” 保存从消息文件自动生成的服务头文件。
+	如果您想知道这些文件,请进入各自的目录查看。
+运行测试:
+	终端一:
+	roscore
+	终端二:
+	source ~/ros/catkin_ws/devel/setup.bash
+	rosrun ros_tutorials_service service_server	
+	终端三:
+	source ~/ros/catkin_ws/devel/setup.bash
+	rosrun ros_tutorials_service service_client 67 90
+也可以通过命令来获取 待命的服务
+	//ros_tutorial_srv 是 service_server 启动了的服务
+	rosservice call /ros_tutorial_srv 10 2	
+通过ros GUI工具获取 待命的服务
+	rqt
+	[Plugins]→[Service]→[Service Caller]
+
+
+动作服务器和客户端 应用框架
+	在 catkin_ws/src
+	catkin_create_pkg ros_tutorials_action message_generation std_msgs actionlib_msgs actionlib roscpp
+修改功能包配置文件(package.xml)加入了
+	<exec_depend>message_runtime</exec_depend>
+修改构建配置文件(CMakeLists.txt)
+	find_package(Boost REQUIRED COMPONENTS system)
+	add_action_files(FILES Fibonacci.action)
+	generate_messages(DEPENDENCIES actionlib_msgs std_msgs)
+	catkin_package (
+	  LIBRARIES ros_tutorials_action
+	  CATKIN_DEPENDS std_msgs actionlib_msgs actionlib roscpp
+	  DEPENDS Boost
+	)
+	include_directories(${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+	add_executable(action_server src/action_server.cpp)
+	add_dependencies(action_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+	target_link_libraries(action_server ${catkin_LIBRARIES})
+	add_executable(action_client src/action_client.cpp)
+	add_dependencies(action_client ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+	target_link_libraries(action_client ${catkin_LIBRARIES})
+在 ros_tutorials_service/action 书写服务数据规范表格 Fibonacci.action
+	可以在动作文件中找到的目标(goal)、结果(result)和反馈(feedback)之外,
+	动作基本上还使用两个额外的消息:取消(cancel)和状态(status)。
+	取消(cancel)消息使用actionlib_msgs/GoalID,它在动作运行时可以取消动作客户端和单独节点上的动作的执行。
+	状态(status)消息可以根据状态转换 (如PENDING、ACTIVE、PREEMPTED和SUCCEEDED )检查当前动作的状态。
+在 ros_tutorials_service/src 书写服务端 service_server 客户端 service_client
+回到 catkin_ws
+catkin_make 
+运行测试:
+	终端一:
+	roscore
+	终端二:
+	source ~/ros/catkin_ws/devel/setup.bash
+	rosrun ros_tutorials_action action_server	
+	终端三:
+	rostopic list -v	//查看 查看当前动作消息的使用情况	
+	终端四:
+	source ~/ros/catkin_ws/devel/setup.bash
+	rosrun ros_tutorials_action action_client
+也可以通过命令来获取 待命的服务
+
+param 参数的用法,基于 基本服务 应用框架 的例子修改, (未实践)
+把 service_server 改成,不只是 加法,还可以减法,乘除法,
+	通过 nh.setParam(“calculation_method”,1); 给ros环境里注册一个 calculation_method 的参数, 默认值是 1
+	通过 nh.getParam(“calculation_method”,g_operator); 把 calculation_method 的值
+	赋予到 service_server 程序中的 g_operator 变量
+编译运行 service_server 后 rosparam list 可以看到注册上的 calculation_method 参数
+设置参数 rosparam set /calculation_method 2
+	例如这里 calculation_method 设为 2 即service_server的 g_operator 变量很快也会变为2,对应着会执行减法 
+
+
+
+
+
+
+
+
+
+
+
+20180706
+重新学习 rviz gazebo
+以下是 移动机器人的 初步实践
+使用 turtlebot3 的例子时出错,因此把之前预安装的 turtlebot3 相关包删掉
+sudo apt-get remove ros-kinetic-turtlebot3 ros-kinetic-turtlebot3-msgs ros-kinetic-turtlebot3-simulations
+然后使用编译编译安装的方式,重新安装
+	cd ~/ros/catkin_ws/src
+	git clone https://github.com/ROBOTIS-GIT/turtlebot3.git
+	git clone https://github.com/ROBOTIS-GIT/turtlebot3_msgs.git
+	git clone https://github.com/ROBOTIS-GIT/turtlebot3_simulations.git	
+	cd ../ && catkin_make
+rviz 模拟运行 turtlebot3
+	终端1:
+	export TURTLEBOT3_MODEL=burger
+	roslaunch turtlebot3_fake turtlebot3_fake.launch
+	//会自动启动 roscore
+	终端2:
+	export TURTLEBOT3_MODEL=burger
+	roslaunch turtlebot3_teleop turtlebot3_teleop_key.launch
+	//键盘控制, rviz 可看到模型在动
+	终端3:
+	rqt_graph
+	//查看 话题 服务...	
+	rosrun rqt_tf_tree rqt_tf_tree
+	//查看机器人每个部分的 tf 变换
+gazebo 模拟运行
+	实验一
+		gazebo //打开gazebo
+	实验二
+		显示 turtlebot-waffle 在gazebo 
+		export TURTLEBOT3_MODEL=waffle	
+		roslaunch turtlebot3_gazebo turtlebot3_empty_world.launch
+	实验三
+		创建的 turtlebot3.world 环境模型
+		终端一
+		export TURTLEBOT3_MODEL=waffle	
+		roslaunch turtlebot3_gazebo turtlebot3_world.launch	
+		终端二
+		export TURTLEBOT3_MODEL=waffle	
+		roslaunch turtlebot3_teleop turtlebot3_teleop_key.launch
+		//键盘控制, gazebo 可看到模型在动
+		终端三
+		export TURTLEBOT3_MODEL=waffle	
+		roslaunch turtlebot3_gazebo turtlebot3_gazebo_rviz.launch
+		//调用 rviz 监控,RViz可以检查Gazebo中运行的机器人的位置、距离传感器值和摄像机图像
+		add -> camera 可以打开 turtlebot-waffle 的摄像头 !! 
+	实验四:
+		虚拟 slam  建立地图
+		终端一
+		export TURTLEBOT3_MODEL=waffle	
+		roslaunch turtlebot3_gazebo turtlebot3_world.launch	
+		终端二
+		export TURTLEBOT3_MODEL=waffle	
+		roslaunch turtlebot3_teleop turtlebot3_teleop_key.launch
+		//键盘控制, gazebo 可看到模型在动
+		终端三
+		export TURTLEBOT3_MODEL=waffle	
+		roslaunch turtlebot3_slam turtlebot3_slam.launch
+		//并且打开了 rviz 观察
+		终端四
+		rosrun map_server map_saver -f ~/map	//保存 rviz 上辨别出的地图
+	实验五:
+		利用地图导航
+		终端一
+		export TURTLEBOT3_MODEL=waffle	
+		roslaunch turtlebot3_gazebo turtlebot3_world.launch	
+		终端二
+		export TURTLEBOT3_MODEL=waffle
+		roslaunch turtlebot3_navigation turtlebot3_navigation.launch map_file:=$HOME/map.yaml
+		//加载刚刚slam得到的地图!! 并启用 rviz
+		//但出现 turtlebot  can't locate node [amcl] in package [amcl]的错误
+		//初步认为是  catkin_ws/devel/lib/amcl 与 opt/ros/kinetic/lib/amcl 冲突了,
+		//程序优先选用前者,但是并没有,所以把opt/ros/kinetic/lib/amcl 
+		//	拷贝到  catkin_ws/devel/lib/amcl
+		//在 rviz 上 可以设置设置目的地 尝试导航
+		终端三
+		export TURTLEBOT3_MODEL=waffle	
+		roslaunch turtlebot3_teleop turtlebot3_teleop_key.launch
+		导航操作:
+		rviz上: 先 2D Pose Estimate 点到 waffle 上,并指定正方向
+		然后,键盘随便控制小车一会, 小车会自动识别出身处地图位置
+		rviz上: 先 2D Nav Goal 随便点到一个目地点上,waffle 便会自动规划路线,并跑到指定地方!!
+		// 2D Nav Goal 这一步出现问题:
+/opt/ros/kinetic/lib/move_base/move_base: symbol lookup error: /opt/ros/kinetic/lib//libdwa_local_planner.so: undefined symbol: _ZN18base_local_planner16LocalPlannerUtil12getLocalPlanERN2tf7StampedINS1_9TransformEEERSt6vectorIN13geometry_msgs12PoseStamped_ISaIvEEESaISA_EE
+[move_base-4] process has died [pid 6311, exit code 127, cmd /opt/ros/kinetic/lib/move_base/move_base cmd_vel:=/cmd_vel odom:=odom __name:=move_base __log:=/home/william/.ros/log/79e7336e-80ec-11e8-b092-a0b3cc2758b2/move_base-4.log].
+log file: /home/william/.ros/log/79e7336e-80ec-11e8-b092-a0b3cc2758b2/move_base-4*.log
+^C[rviz-5] killing on exit
+		把 move_base 和 libdwa_local_planner.so 拷贝到 catkin_ws/devel/lib 下,也没有用
+/home/william/ros/catkin_ws/devel/lib/move_base/move_base: symbol lookup error: /home/william/ros/catkin_ws/devel/lib//libdwa_local_planner.so: undefined symbol: _ZN18base_local_planner16LocalPlannerUtil12getLocalPlanERN2tf7StampedINS1_9TransformEEERSt6vectorIN13geometry_msgs12PoseStamped_ISaIvEEESaISA_EE
+[move_base-4] process has died [pid 14715, exit code 127, cmd /home/william/ros/catkin_ws/devel/lib/move_base/move_base cmd_vel:=/cmd_vel odom:=odom __name:=move_base __log:=/home/william/.ros/log/79e7336e-80ec-11e8-b092-a0b3cc2758b2/move_base-4.log].
+log file: /home/william/.ros/log/79e7336e-80ec-11e8-b092-a0b3cc2758b2/move_base-4*.log
+		这个问题暂时搁置!!
+
+
+以下是机械臂的基础实践
+实验一:
+	cd ~/ros/catkin_ws/src
+	catkin_create_pkg testbot_description urdf
+	cd testbot_description
+	catkin_make
+	//写机械臂模型
+	mkdir urdf
+	cd urdf
+	gedit testbot.urdf	
+
+注意 urdf 的标签意义:
+<link>: 	连杆
+  <visual>: 	设置连杆的可视化信息
+    <origin>: 	设置相对于连杆相对坐标系的移动和旋转
+    <geometry>: 输入模型的形状。提供box、cylinder、sphere等形态,也可以导入COLLADA(.dae)、STL(.stl)格式的设计文件。
+    <material>: 设置连杆的颜色和纹理
+  <collision>: 	设置连杆的碰撞计算的信息
+    <origin>: 	同样 设置相对于连杆相对坐标系的移动和旋转
+    <geometry>: 同样 输入模型的形状。在<collision>标签中,可以指定为简单的形态来减少计算时间
+  <inertial>:	设置连杆的惯性信息
+    <mass>: 	连杆重量(单位:kg)的设置	
+    <inertia>: 	惯性张量(Inertia tensor )设置
+
+<joint>: 	与连杆有关系 的 关节
+		type: revolute(旋转运动型)、prismatic(平移运动型)、continuous(连续旋转的轮)、fixed(固定型)、
+		floating(非固定)和planar(在与轴垂直的平面移动的形态)
+  <parent>: 	关节的父连杆
+  <child>: 	关节的子连杆
+  <origin>: 	将父连杆坐标系转换为子连杆坐标系	
+  <axis>:	设置旋转轴 	
+  <limit>: 	设置关节的速度、力和半径(仅当关节是revolute或prismatic时)
+		属性包括: 关节的力(effort,单位N),最小、最大角度(lower下限,upper上限,以弧度为单位)
+		角速度(velocity以弧度/秒) ...
+	
+	//check_urdf命令来检查已创建的URDF的语法错误以及每个连杆的连接关系
+	check_urdf testbot.urdf
+	//用关系图表示urdf_to_graphiz程序创建的模型,会创建一个.gv文件和一个.pdf文件
+	urdf_to_graphiz testbot.urdf
+	//RViz检查机器人模型
+	cd ~/ros/catkin_ws/src/testbot_description
+	mkdir launch
+	cd launch
+	gedit testbot.launch	// 写 launch
+	catkin_make
+<launch>
+	<arg name="model" default="$(find testbot_description)/urdf/testbot.urdf"/>
+	<arg name="gui" default="True"/>
+	<param name="robot_description"textfile="$(arg model)"/>
+	<param name="use_gui" value="$(arg gui)"/>
+	<node pkg="joint_state_publisher" type="joint_state_publisher" name="joint_state_publisher"/>
+	<node pkg="robot_state_publisher" type="state_publisher" name="robot_state_publisher"/>
+</launch>
+	终端1	
+	roscore
+	终端2	(出错,一般考虑更改环境变量 source ~/ros/catkin_ws/devel/setup.bash)
+	roslaunch testbot_description testbot.launch
+	//会看到 一个 joint_state_pubisher 
+	终端3	(显示了设计的机械臂)
+	rviz
+	// add robotmodel
+	// 移动 joint_state_pubisher 会看到 rviz 机械臂模型在动!!  
+
+实验二: 测试 OpenManipulator 机械臂
+	cd ~/ros/catkin_ws/src	
+	git clone https://github.com/ROBOTIS-GIT/open_manipulator.git
+	git clone https://github.com/ROBOTIS-GIT/open_manipulator_msgs
+	git clone https://github.com/ROBOTIS-GIT/open_manipulator_simulations
+	git clone https://github.com/ROBOTIS-GIT/open_manipulator_perceptions
+	git clone https://github.com/ROBOTIS-GIT/open_manipulator_with_tb3
+	git clone https://github.com/ROBOTIS-GIT/open_manipulator_with_tb3_msgs
+	git clone https://github.com/ROBOTIS-GIT/open_manipulator_with_tb3_simulations
+	git clone https://github.com/ros-perception/ar_track_alvar
+	cd ../ && catkin_make
+
+	OpenManipulator文件目录信息
+	open_manipulator_description 	→ 建模功能包
+		/urdf
+			materials.xacro 			→ 材质信息
+			open_manipulator.urdf.xacro 		→ 机械手臂建模		
+			open_manipulator.gazebo.xacro	→ 机械手臂 Gazebo 建模
+		/rviz
+			open_manipulator.rviz			→ RViz 配置文件
+		/launch
+			open_manipulator_model.launch 	→ 机械手臂状态信息发布者节点运行文件
+			open_manipulator_rviz.launch 	→ 机器人建模信息可视化节点运行文件	
+
+	open_manipulator_gazebo 	→ Gazebo package
+		/launch
+			open_manipulator_controller.launch 	→ ROS - CONTROL 运行文件
+			open_manipulator_gazebo.launch	 	→ Gazebo 运行文件
+	open_manipulator_dynamixel_ctrl → Dynamixel 控制功能包		
+	open_manipulator_moveit		→ MoveIt !功能包
+	open_manipulator_msgs		→ 信息功能包
+	open_manipulator_position_ctrl	→ 位置控制功能包
+	open_manipulator_with_tb3 	→ OpenManipulator 和 TurtleBot3 功能包	
+
+	实验1: RViz中显示机械手臂
+	roslaunch open_manipulator_description open_manipulator_rviz.launch
+	
+	实验2: 在Gazebo仿真空间中看到 OpenManipulator
+	roslaunch open_manipulator_gazebo open_manipulator_gazebo.launch
+	rostopic list	//查看话题
+	在gazebo 点击播放按钮, 即开始物理模拟!!
+	输入 joint2 的位置指令
+	rostopic pub /open_manipulator/joint2_position/command std_msgs/Float64 "data: -1.0" --once
+	可以看到 gazebo的 机械臂在动
+
+实验三: MoveIt 学习	
+	实验1
+	//打开 Setup Assistant
+	roslaunch moveit_setup_assistant setup_assistant.launch 
+		创建一个新的功能包 Create New MoveIt Configuration Package
+		选择 open_manipulator.urdf.xacro 文件路径, 然后load file
+		Sampling density,默认值设置为10,000 然后单击Generate Collision Matrix按钮。
+			Sampling density(采样密度),可以根据需要确定组成机器人的连杆之间的碰撞范围,
+			Sampling density越高,需要越多的计算来防止机器人在各种姿态中的连杆之间的碰撞,
+			用户根据工作环境进行适当的设置。
+		创建 两个运动组:
+		Planning Groups -> add group, group name: arm, 
+		Kinematic Slover: cached_ik_kinematics_plugin/CachedKDLKinematicsPlugin
+		Add joint 选择第一个关节到第四个关节joint,然后单击 >, 再单击Save按钮
+		Planning Groups -> add group, group name : gripper
+		Kinematic Slover: cached_ik_kinematics_plugin/CachedKDLKinematicsPlugin
+		Add joint 选择相关的关节grip_joint和grip_joint_sub,然后单击 >, 再单击Save按钮		
+			MoveIt! 通过 Planning Groups 将机械手臂分为几个组,
+			通过(Kinematic Slover)为各组分别选择合适运动规划 
+		创建 2个特殊姿态	
+		Robot Poses -> Add Pose, pose name : start, Planning Groups arm
+		所有joint 设为 0 
+		Robot Poses -> Add Pose, pose name : end, Planning Groups arm
+		joint2 设-1, 其他 joint 设为 0
+			Robot Poses页面允许您创建和注册机器人的特殊姿态。
+		注册 末端执行器
+		End Effectors -> Add End Effector, End Effector Name: liner-gripper
+		End Effector Group: gripper, Parent Link: link5
+			End Effectors页面可以注册机械手臂的end-effector(末端执行器)
+		passive joint页面跳过
+			passive Joints页面允许您指定不属于运动规划的关节.
+			在OpenManipulator中,没有passive joint,因此不作任何改变进入下一阶段,
+		Author information页面不能跳过,随便填
+			Author information页面上,输入创建功能包的用户的姓名和电子邮件
+		Configuration Files页面上完成配置,单击Browse,
+		在open_manipulator目录中创建open_manipulator_moveit_example目录
+		单击Generate Package
+		最后会在 open_manipulator_moveit_example 存在相关 moveit Configuration文件
+	cd ~/ros/catkin_ws
+	catkin_make
+	roslaunch open_manipulator_moveit_example demo.launch
+	//这样就可以在 rviz 看到 机械臂 也可以 执行 motionplaning
+	//不过还是有很多 奇怪的问题, 可以执行 moveit_setup_assistant 重新修改配置文件
+	最大问题是没有 绿色位置球(Interactive marker), 可视化操作机械臂,
+	roscd open_manipulator_moveit_example/config/
+	gedit kinematics.yaml
+	添加:
+		arm:
+		  kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
+		  kinematics_solver_search_resolution: 0.005
+		  kinematics_solver_timeout: 0.005
+		  kinematics_solver_attempts: 3
+		position_only_ik: true
+	重新
+	roslaunch open_manipulator_moveit_example demo.launch
+	也可以对比 官方做好的例子, 也可以用 moveit_setup_assistant 查看官方的配置而学习!!
+ 	roslaunch open_manipulator_moveit open_manipulator_demo.launch use_gazebo:=false
+
+	实验2
+	接上述, industrial_trajectory_filters 应用
+	cd ~/ros/catkin_ws/src	
+	git clone https://github.com/ros-industrial/industrial_core.git
+	cd ../ && catkin_make
+	cd src/industrial_core/industrial_trajectory_filters/
+	cp -r planning_request_adapters_plugin_description.xml src include ~/ros/catkin_ws/src/open_manipulator/open_manipulator_moveit_example/
+	然后,在config目录中创建smoothing_filter_params.yaml并指定系数
+	cd ~/ros/catkin_ws/src/open_manipulator/open_manipulator_moveit_example/config
+	gedit smoothing_filter_params.yaml
+	添加:
+	smoothing_filter_name: /move_group/smoothing_5_coef
+	smoothing_5_coef:
+	  -0.25
+	  -0.50
+	  -1.00
+	  -0.50
+	  -0.25	
+	打开launch目录中的ompl_planning_pipeline.launch.xml,
+	cd ~/ros/catkin_ws/src/open_manipulator/open_manipulator_moveit_example/launch
+	gedit ompl_planning_pipeline.launch.xml
+	在planning_adapters添加以下过滤器
+		industrial_trajectory_filters/UniformSampleFilter
+		industrial_trajectory_filters/AddSmoothingFilter
+	添加以下参数:
+		<param name="sample_duration" value="0.04"/>
+		<rosparam command="load" file="$(find open_manipulator_moveit)/config/smoothing_filter_params.yaml"/>
+	最后重新执行:
+	roslaunch open_manipulator_moveit_example demo.launch
+	可以看到 motionplaning 动作运行更加合理
+
+实验四: OpenManipulator gazebo实验  http://emanual.robotis.com/docs/en/platform/openmanipulator/#manipulation
+	先启动 moveit 和rviz :
+	roslaunch open_manipulator_moveit open_manipulator_demo.launch use_gazebo:=true
+	新终端再启动 gazebo :
+	roslaunch open_manipulator_gazebo open_manipulator_gazebo.launch
+	这时在 rviz motionplaning 的行为,可以在 gazebo 看到.
+	使用消息通信来控制Gazebo仿真器的机器人的实现代码
+	在 open_manipulator_position_ctrl/src
+	新终端,操纵抓手操作 :
+	闭合
+	rostopic pub /open_manipulator/gripper std_msgs/String "data: 'grip_on'" --once
+	张开
+	rostopic pub /open_manipulator/gripper std_msgs/String "data: 'grip_off'" --once
+
+关于实际控制由于没有实际器材,无法操作.
+
+实验五: OpenManipulator + turtlebot3
+	roslaunch open_manipulator_with_tb3_waffle_moveit demo.launch
+	
+
+学习 .xacro 扩张的urdf
+包含外部 .xacro
+	<xacro:include filename="$(find open_manipulator_description)/urdf/open_manipulator.gazebo.xacro" />
+	<xacro:include filename="$(find open_manipulator_description)/urdf/materials.xacro" />
+<transmission>是与ROS-CONTROL一起运行所必须的标签,它输入关节与舵机之间的命令接口,
+	它输入关节与舵机之间的命令接口。命令接口有力(effort)、速度(velocity)和位置(position),
+	<transmission>:	 设置关节和舵机之间的变量
+	  <type>: 	 设置力的传递方式的形状
+	  <joint>: 	 设置关节信息设置
+	  <actuator>: 	 设置舵机信息
+	    <hardwareInterface>: 	设置硬件接口	
+	    <mechanicalReduction>:	设置舵机与关节之间的齿轮比	
+	例如:
+	  <!-- Transmission 1 -->
+	  <transmission name="tran1">
+	    <type>transmission_interface/SimpleTransmission</type>
+	    <joint name="joint1">
+	      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+	    </joint>
+	    <actuator name="motor1">
+	      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+	      <mechanicalReduction>1</mechanicalReduction>
+	    </actuator>
+	  </transmission>	
+关于用于 gazebo 模拟的的 标签内容
+	<gazebo>: 	设置Gazebo仿真的参数
+	  <mu1>:	设置摩擦系数
+	  <mu2>:	设置摩擦系数
+	  <material>: 	设置连杆颜色
+	  <plugin>:	plugin 是使用ROS消息和服务通信支持通过URDF或SDF创建的机器人模型的传感器和电机的状态和控制的工具	
+	    <robotNamespace>:	设置在Gazebo中使用的机器人名称
+	    <robotSimType>:	设置机器人仿真界面的插件名称
+	这里要配合说说 使用gazebo模拟 的一些内容
+ 	查看:catkin_ws/src/open_manipulator_simulations/open_manipulator_gazebo/launch/open_manipulator_gazebo.launch
+	launch 要打开的包含:
+		empty_world.launch文件
+		spawn_model节点 
+		position_controller.launch文件
+	empty_world.launch文件包含运行Gazebo的节点,因此可以设置仿真环境、GUI和时间。Gazebo仿真环境支持SDF格式的文件。
+	spawn_model节点根据上面创建的URDF调用机器人,
+	position_controller.launch负责设置和运行ROS-CONTROL。
+	
+关于 move_group, MoveIt! 简单概念
+	move_group节点从URDF、Semantic Robot Description Format(SRDF) 和 MoveIt! Configuration接收关于机器人的信息。
+	URDF使用先前创建的文件,而SRDF和 MoveIt! Configuration 将通过MoveIt!提供的Setup Assistant 创建。
+	move_group节点通过ROS话题和动作提供机器人的状态与控制,还提供周围环境。
+	关节状态是通过sensor_msgs/JointStates消息,
+	变换信息是通过tf库,
+	控制器是通过FollowTrajectoryAction接口向用户发送关于机器人的信息。
+	另外,通过planning scene向用户提供关于机器人工作的环境信息和机器人的状态。
+	move_group为其可扩展性提供了一个plugin功能,
+	并提供了一个通过开源库将各种功能(控制、路径生成、动力学等)应用到用户的机器人的机会。
+	MoveIt!内置的插件是已经被许多人验证过的优秀的库,并且还有许多最近开发的开源库也待发布。
+	典型有The Open Motion Planning Library(OMPL) 、Kinematic and Dynamic Library(KDL) 和 A Flexible Collision Library(FCL)
+	为了创建用于机械手臂的MoveIt!功能包,需要URDF、SRDF以及用于MoveIt!Configuration的文件。
+	MoveIt!提供的Setup Assistant(设置助手)基于URDF生成用于创建MoveIt!功能包的SRDF和MoveIt! Configuration文件。
+	有必要讨论Setup Assistant 生成的文件:
+	
+
+
+
+
+
+
+		
 
 
 
