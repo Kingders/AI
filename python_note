@@ -4878,11 +4878,40 @@ log file: /home/william/.ros/log/79e7336e-80ec-11e8-b092-a0b3cc2758b2/move_base-
 
 
 
+20180723
+unity3d in machine learning
+安装 unity :https://forum.unity.com/threads/unity-on-linux-release-notes-and-known-issues.350256/
+	https://www.jianshu.com/apps?utm_medium=desktop&utm_source=navbar-apps
+	只使用deb包
+
+使用 ml-agent 教程:
+	https://www.cnblogs.com/CodeGize/p/7711095.html
+
+	https://www.cnblogs.com/CodeGize/p/7711095.html
+	https://mp.weixin.qq.com/s?__biz=MzIzNjc1NzUzMw==&mid=2247501716&idx=3&sn=5fda17d21bf46fd54440b9d6b4c00d37&chksm=e8d070e6dfa7f9f0160a32fcb026b79d43752f7b5e20118250c70355146b9f825ec7558f165a&mpshare=1&scene=1&srcid=0725GqNZ2YSNAq12qGGxwbFG&pass_ticket=jdowY3kGPUGpgufRPp%2FkaTolFN1YAyUY6FvmEXLry%2B%2F4wXJRRCBGdBF8WQA5uXF%2F#rd
+
+https://github.com/abehaskins
+https://github.com/Unity-Technologies/ml-agents/blob/master/docs/Installation.md
+
+https://github.com/Unity-Technologies/ml-agents/blob/master/docs/Basic-Guide.md
 
 
 
 
 
+
+
+
+
+
+
+
+201905024
+使用 deepfake 与 ros  冲突!!! cv2 定位冲突问题
+ImportError: /opt/ros/kinetic/lib/python2.7/dist-packages/cv2.so: undefined symbol: PyCObject_Type
+所以 临时cv2.so改个名字
+cd /opt/ros/kinetic/lib/python2.7/dist-packages/
+sudo mv cv2.so cv2_ros.so
 
 
 
